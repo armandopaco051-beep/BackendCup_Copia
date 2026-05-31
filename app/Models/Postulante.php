@@ -28,5 +28,6 @@ class Postulante extends Model
         'fecha_nacimiento',
         'genero',
         'cod_titulo_bachiller',
+        'estado',
     ];
 }
