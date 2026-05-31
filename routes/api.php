@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PagoMatriculaController;
 use App\Http\Controllers\PermisoController;
 use App\Http\Controllers\PreinscripcionController;
+use App\Http\Controllers\RequisitoPostulanteController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +26,10 @@ Route::apiResource('roles', RolController::class)->parameters([
 ]);
 Route::put('/roles/{rol}/permisos', [RolController::class, 'sincronizarPermisos']);
 Route::apiResource('permisos', PermisoController::class);
+
+// CU-07: Validar requisitos fisicos del postulante.
+Route::post('/postulantes/{username}/requisitos', [RequisitoPostulanteController::class, 'store']);
+Route::get('/postulantes/{username}/requisitos', [RequisitoPostulanteController::class, 'show']);
 
 // CU-08: Registrar pago de matricula mediante Stripe.
 Route::post('/postulantes/{username}/pago-matricula/intento', [PagoMatriculaController::class, 'crearIntento']);
