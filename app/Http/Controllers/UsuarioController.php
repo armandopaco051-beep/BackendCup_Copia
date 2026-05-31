@@ -1,0 +1,282 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Administrativo;
+use App\Models\Docente;
+use App\Models\Postulante;
+use App\Models\Rol;
+use App\Models\Usuario;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+
+class UsuarioController extends Controller
+{
+    public function index(): JsonResponse
+    {
+        $usuarios = Usuario::with('rol.permisos', 'postulante', 'docente', 'administrativo')
+            ->orderBy('username')
+            ->get()
+            ->map(fn (Usuario $usuario): array => $this->formatUsuario($usuario));
+
+        return response()->json([
+            'usuarios' => $usuarios,
+        ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'username' => [
+                'required',
+                'string',
+                'max:500',
+                Rule::unique('seguridad.usuario', 'username'),
+            ],
+            'password' => ['required', 'string', 'min:6'],
+            'codigo_rol' => ['nullable', 'integer', Rule::exists('seguridad.rol', 'id')],
+            'tipo' => ['required', 'string', Rule::in(['administrativo', 'docente', 'postulante'])],
+            'perfil' => ['required', 'array'],
+        ]);
+
+        $perfil = $this->validatePerfil($request, $validated['tipo'], true);
+
+        $usuario = DB::transaction(function () use ($validated, $perfil): Usuario {
+            $usuario = Usuario::create([
+                'username' => $validated['username'],
+                'password' => $validated['password'],
+                'codigo_rol' => $validated['codigo_rol'] ?? $this->rolIdPorTipo($validated['tipo']),
+                'tipo' => $validated['tipo'],
+            ]);
+
+            $this->crearPerfil($usuario, $perfil);
+
+            return $usuario->load('rol.permisos', 'postulante', 'docente', 'administrativo');
+        });
+
+        return response()->json([
+            'message' => 'Usuario creado correctamente.',
+            'usuario' => $this->formatUsuario($usuario),
+        ], 201);
+    }
+
+    public function show(Usuario $usuario): JsonResponse
+    {
+        $usuario->load('rol.permisos', 'postulante', 'docente', 'administrativo');
+
+        return response()->json([
+            'usuario' => $this->formatUsuario($usuario),
+        ]);
+    }
+
+    public function update(Request $request, Usuario $usuario): JsonResponse
+    {
+        $validated = $request->validate([
+            'codigo_rol' => ['sometimes', 'nullable', 'integer', Rule::exists('seguridad.rol', 'id')],
+            'tipo' => ['sometimes', 'string', Rule::in(['administrativo', 'docente', 'postulante'])],
+            'perfil' => ['sometimes', 'array'],
+        ]);
+
+        $nuevoTipo = $validated['tipo'] ?? $usuario->tipo;
+
+        if ($nuevoTipo !== $usuario->tipo && ! $request->has('perfil')) {
+            throw ValidationException::withMessages([
+                'perfil' => ['El perfil es obligatorio cuando se cambia el tipo de usuario.'],
+            ]);
+        }
+
+        $perfil = $request->has('perfil')
+            ? $this->validatePerfil($request, $nuevoTipo, false)
+            : null;
+
+        $usuario = DB::transaction(function () use ($usuario, $validated, $nuevoTipo, $perfil): Usuario {
+            $tipoAnterior = $usuario->tipo;
+
+            $usuario->fill([
+                'codigo_rol' => array_key_exists('codigo_rol', $validated)
+                    ? $validated['codigo_rol']
+                    : $usuario->codigo_rol,
+                'tipo' => $nuevoTipo,
+            ]);
+            $usuario->save();
+
+            if ($perfil !== null) {
+                if ($nuevoTipo !== $tipoAnterior) {
+                    $this->eliminarPerfil($usuario, $tipoAnterior);
+                    $this->crearPerfil($usuario, $perfil);
+                } else {
+                    $this->actualizarPerfil($usuario, $perfil);
+                }
+            }
+
+            return $usuario->load('rol.permisos', 'postulante', 'docente', 'administrativo');
+        });
+
+        return response()->json([
+            'message' => 'Usuario actualizado correctamente.',
+            'usuario' => $this->formatUsuario($usuario),
+        ]);
+    }
+
+    public function destroy(Usuario $usuario): JsonResponse
+    {
+        DB::transaction(function () use ($usuario): void {
+            $this->eliminarPerfil($usuario, $usuario->tipo);
+            $usuario->delete();
+        });
+
+        return response()->json([
+            'message' => 'Usuario eliminado correctamente.',
+        ]);
+    }
+
+    public function asignarRol(Request $request, Usuario $usuario): JsonResponse
+    {
+        $validated = $request->validate([
+            'codigo_rol' => ['required', 'integer', Rule::exists('seguridad.rol', 'id')],
+        ]);
+
+        $usuario->update([
+            'codigo_rol' => $validated['codigo_rol'],
+        ]);
+
+        $usuario->load('rol.permisos', 'postulante', 'docente', 'administrativo');
+
+        return response()->json([
+            'message' => 'Rol asignado correctamente.',
+            'usuario' => $this->formatUsuario($usuario),
+        ]);
+    }
+
+    public function restablecerPassword(Request $request, Usuario $usuario): JsonResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $usuario->update([
+            'password' => $validated['password'],
+        ]);
+
+        return response()->json([
+            'message' => 'Contrasena restablecida correctamente.',
+        ]);
+    }
+
+    private function validatePerfil(Request $request, string $tipo, bool $required): array
+    {
+        return match ($tipo) {
+            'administrativo' => $request->validate([
+                'perfil.nombre' => [$required ? 'required' : 'sometimes', 'string', 'max:500'],
+                'perfil.telefono' => [$required ? 'required' : 'sometimes', 'string', 'max:10'],
+                'perfil.ciudad' => [$required ? 'required' : 'sometimes', 'string'],
+            ])['perfil'],
+            'docente' => $request->validate([
+                'perfil.nombre' => [$required ? 'required' : 'sometimes', 'string', 'max:500'],
+                'perfil.especializacion' => ['nullable', 'string'],
+                'perfil.maestria' => ['nullable', 'string'],
+            ])['perfil'],
+            'postulante' => $request->validate([
+                'perfil.correo' => [$required ? 'required' : 'sometimes', 'email', 'max:100'],
+                'perfil.ci' => [$required ? 'required' : 'sometimes', 'string', 'max:100'],
+                'perfil.nombre' => [$required ? 'required' : 'sometimes', 'string', 'max:100'],
+                'perfil.telefono' => [$required ? 'required' : 'sometimes', 'string', 'max:10'],
+                'perfil.ciudad' => [$required ? 'required' : 'sometimes', 'string', 'max:100'],
+                'perfil.colegio_procedencia' => [$required ? 'required' : 'sometimes', 'string'],
+                'perfil.direccion' => [$required ? 'required' : 'sometimes', 'string'],
+                'perfil.fecha_nacimiento' => [$required ? 'required' : 'sometimes', 'date'],
+                'perfil.genero' => [$required ? 'required' : 'sometimes', 'string', 'max:100'],
+                'perfil.cod_titulo_bachiller' => [$required ? 'required' : 'sometimes', 'string'],
+            ])['perfil'],
+        };
+    }
+
+    private function rolIdPorTipo(string $tipo): int
+    {
+        $nombreRol = match ($tipo) {
+            'administrativo' => 'administrador',
+            'docente' => 'docente',
+            'postulante' => 'postulante',
+        };
+
+        $rol = Rol::where('nombre', $nombreRol)->first();
+
+        if (! $rol) {
+            throw ValidationException::withMessages([
+                'tipo' => ["No existe el rol {$nombreRol} en seguridad.rol."],
+            ]);
+        }
+
+        return $rol->id;
+    }
+
+    private function crearPerfil(Usuario $usuario, array $perfil): void
+    {
+        match ($usuario->tipo) {
+            'administrativo' => Administrativo::create([
+                'username_administrativo' => $usuario->username,
+                ...$perfil,
+            ]),
+            'docente' => Docente::create([
+                'username_docente' => $usuario->username,
+                ...$perfil,
+            ]),
+            'postulante' => Postulante::create([
+                'username_postulante' => $usuario->username,
+                ...$perfil,
+            ]),
+        };
+    }
+
+    private function actualizarPerfil(Usuario $usuario, array $perfil): void
+    {
+        match ($usuario->tipo) {
+            'administrativo' => $usuario->administrativo()->updateOrCreate(
+                ['username_administrativo' => $usuario->username],
+                $perfil,
+            ),
+            'docente' => $usuario->docente()->updateOrCreate(
+                ['username_docente' => $usuario->username],
+                $perfil,
+            ),
+            'postulante' => $usuario->postulante()->updateOrCreate(
+                ['username_postulante' => $usuario->username],
+                $perfil,
+            ),
+        };
+    }
+
+    private function eliminarPerfil(Usuario $usuario, string $tipo): void
+    {
+        match ($tipo) {
+            'administrativo' => Administrativo::where('username_administrativo', $usuario->username)->delete(),
+            'docente' => Docente::where('username_docente', $usuario->username)->delete(),
+            'postulante' => Postulante::where('username_postulante', $usuario->username)->delete(),
+            default => null,
+        };
+    }
+
+    private function formatUsuario(Usuario $usuario): array
+    {
+        return [
+            'username' => $usuario->username,
+            'tipo' => $usuario->tipo,
+            'rol' => $usuario->rol ? [
+                'id' => $usuario->rol->id,
+                'nombre' => $usuario->rol->nombre,
+            ] : null,
+            'perfil' => match ($usuario->tipo) {
+                'administrativo' => $usuario->administrativo,
+                'docente' => $usuario->docente,
+                'postulante' => $usuario->postulante,
+                default => null,
+            },
+            'permisos' => $usuario->rol
+                ? $usuario->rol->permisos->pluck('nombre')->values()
+                : [],
+        ];
+    }
+}
