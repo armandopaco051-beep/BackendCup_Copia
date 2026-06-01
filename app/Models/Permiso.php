@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Permiso extends Model
 {
-    protected $table = 'seguridad.permiso';
+    use HasPostgresSchema;
+
+    protected string $schema = 'seguridad';
+
+    protected $table = 'permiso';
 
     protected $primaryKey = 'codigo';
 

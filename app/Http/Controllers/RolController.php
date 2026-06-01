@@ -13,14 +13,17 @@ class RolController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            'roles' => Rol::with('permisos')->orderBy('id')->get(),
+            'roles' => Rol::with('permisos')
+                ->withCount(['usuarios'])
+                ->orderBy('id')
+                ->get(),
         ]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:500', Rule::unique('seguridad.rol', 'nombre')],
+            'nombre' => ['required', 'string', 'max:500', Rule::unique('pgsql.seguridad.rol', 'nombre')],
         ]);
 
         $rol = Rol::create($validated)->load('permisos');
@@ -45,7 +48,7 @@ class RolController extends Controller
                 'required',
                 'string',
                 'max:500',
-                Rule::unique('seguridad.rol', 'nombre')->ignore($rol->id, 'id'),
+                Rule::unique('pgsql.seguridad.rol', 'nombre')->ignore($rol->id, 'id'),
             ],
         ]);
 
@@ -72,7 +75,7 @@ class RolController extends Controller
     {
         $validated = $request->validate([
             'permisos' => ['required', 'array'],
-            'permisos.*' => ['integer', Rule::exists('seguridad.permiso', 'codigo')],
+            'permisos.*' => ['integer', Rule::exists('pgsql.seguridad.permiso', 'codigo')],
         ]);
 
         $rol->permisos()->sync($validated['permisos']);

@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Pago extends Model
 {
-    protected $table = 'pago.pago';
+    use HasPostgresSchema;
+
+    protected string $schema = 'pago';
+
+    protected $table = 'pago';
 
     public $timestamps = false;
 

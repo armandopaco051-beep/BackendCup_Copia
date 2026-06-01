@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 
 class PostulanteCarrera extends Model
 {
-    protected $table = 'academico.postulante_carrera';
+    use HasPostgresSchema;
+
+    protected string $schema = 'academico';
+
+    protected $table = 'postulante_carrera';
 
     public $incrementing = false;
 

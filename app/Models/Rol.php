@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Rol extends Model
 {
-    protected $table = 'seguridad.rol';
+    use HasPostgresSchema;
+
+    protected string $schema = 'seguridad';
+
+    protected $table = 'rol';
 
     protected $primaryKey = 'id';
 
@@ -25,5 +31,10 @@ class Rol extends Model
             'id',
             'codigo',
         );
+    }
+
+    public function usuarios(): HasMany
+    {
+        return $this->hasMany(Usuario::class, 'codigo_rol', 'id');
     }
 }

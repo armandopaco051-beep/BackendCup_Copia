@@ -1,0 +1,107 @@
+@extends('layouts.app')
+
+@section('title', 'Gestion de usuarios | FICCT')
+
+@section('content')
+<main class="portal-shell" data-page="usuarios">
+    @include('dashboard.partials.sidebar', ['active' => 'usuarios'])
+
+    <section class="portal-main users-page">
+        <header class="users-header">
+            <div>
+                <span class="section-kicker">Seguridad</span>
+                <h1>Gestion de usuarios</h1>
+                <p>Crear, editar y administrar cuentas del sistema CUP.</p>
+                <small id="dashboardUser" class="session-chip">Cargando sesion...</small>
+            </div>
+            <a class="primary-action users-new-button" href="#createUserPanel">
+                <span>Nuevo usuario</span>
+            </a>
+        </header>
+
+        <article class="module-card is-wide users-list-card">
+            <div class="users-list-head">
+                <div>
+                    <h2>Listado</h2>
+                    <p id="usersCount">Sin datos cargados</p>
+                </div>
+                <button class="secondary-action" type="button" data-load-users>Actualizar</button>
+            </div>
+
+            <label class="users-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <path d="m16 16 4 4"></path>
+                </svg>
+                <input id="userSearch" type="search" placeholder="Buscar por nombre, usuario o correo...">
+            </label>
+
+            <div class="table-wrap users-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Correo</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable">
+                        <tr><td colspan="5">Cargando usuarios...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <section id="createUserPanel" class="users-forms-grid">
+            <article class="module-card">
+                <div class="module-head">
+                    <span>CU-03</span>
+                    <div>
+                        <h2>Nuevo usuario</h2>
+                        <p>Registra administrativos o docentes.</p>
+                    </div>
+                </div>
+
+                <form id="createUserForm" class="portal-form">
+                    <div class="form-grid">
+                        <label>Usuario<input name="username" required placeholder="docente1"></label>
+                        <label>Contrasena<input name="password" type="password" required minlength="6" placeholder="123456"></label>
+                        <label>Tipo
+                            <select name="tipo" required>
+                                <option value="administrativo">Administrativo</option>
+                                <option value="docente">Docente</option>
+                            </select>
+                        </label>
+                        <label>Nombre<input name="nombre" required placeholder="Nombre completo"></label>
+                        <label>Telefono<input name="telefono" placeholder="70000000"></label>
+                        <label>Ciudad<input name="ciudad" placeholder="Santa Cruz"></label>
+                        <label>Especializacion<input name="especializacion" placeholder="Sistemas"></label>
+                        <label>Maestria<input name="maestria" placeholder="Educacion Superior"></label>
+                    </div>
+                    <button class="primary-action" type="submit"><span>Crear usuario</span></button>
+                </form>
+            </article>
+
+            <article class="module-card">
+                <div class="module-head">
+                    <span>Rol</span>
+                    <div>
+                        <h2>Asignar rol</h2>
+                        <p>Actualiza el rol de una cuenta existente.</p>
+                    </div>
+                </div>
+
+                <form id="assignRoleForm" class="portal-form">
+                    <label>Usuario<input name="username" required placeholder="docente1"></label>
+                    <label>ID rol<input name="codigo_rol" type="number" required placeholder="2"></label>
+                    <button class="secondary-action" type="submit">Asignar rol</button>
+                </form>
+            </article>
+        </section>
+
+        <pre id="usersOutput" class="module-output"></pre>
+    </section>
+</main>
+@endsection

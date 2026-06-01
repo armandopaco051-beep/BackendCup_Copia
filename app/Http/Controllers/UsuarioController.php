@@ -34,10 +34,10 @@ class UsuarioController extends Controller
                 'required',
                 'string',
                 'max:500',
-                Rule::unique('seguridad.usuario', 'username'),
+                Rule::unique('pgsql.seguridad.usuario', 'username'),
             ],
             'password' => ['required', 'string', 'min:6'],
-            'codigo_rol' => ['nullable', 'integer', Rule::exists('seguridad.rol', 'id')],
+            'codigo_rol' => ['nullable', 'integer', Rule::exists('pgsql.seguridad.rol', 'id')],
             'tipo' => ['required', 'string', Rule::in(['administrativo', 'docente', 'postulante'])],
             'perfil' => ['required', 'array'],
         ]);
@@ -75,7 +75,7 @@ class UsuarioController extends Controller
     public function update(Request $request, Usuario $usuario): JsonResponse
     {
         $validated = $request->validate([
-            'codigo_rol' => ['sometimes', 'nullable', 'integer', Rule::exists('seguridad.rol', 'id')],
+            'codigo_rol' => ['sometimes', 'nullable', 'integer', Rule::exists('pgsql.seguridad.rol', 'id')],
             'tipo' => ['sometimes', 'string', Rule::in(['administrativo', 'docente', 'postulante'])],
             'perfil' => ['sometimes', 'array'],
         ]);
@@ -136,7 +136,7 @@ class UsuarioController extends Controller
     public function asignarRol(Request $request, Usuario $usuario): JsonResponse
     {
         $validated = $request->validate([
-            'codigo_rol' => ['required', 'integer', Rule::exists('seguridad.rol', 'id')],
+            'codigo_rol' => ['required', 'integer', Rule::exists('pgsql.seguridad.rol', 'id')],
         ]);
 
         $usuario->update([

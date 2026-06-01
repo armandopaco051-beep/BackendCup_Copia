@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HabilitacionPostulanteController;
 use App\Http\Controllers\PagoMatriculaController;
 use App\Http\Controllers\PermisoController;
@@ -9,6 +10,8 @@ use App\Http\Controllers\RequisitoPostulanteController;
 use App\Http\Controllers\RolController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/dashboard', [DashboardController::class, 'index']);
 
 // CU-06: Registrar preinscripcion del bachiller para iniciar admision.
 Route::post('/preinscripciones', [PreinscripcionController::class, 'store']);

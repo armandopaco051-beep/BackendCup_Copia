@@ -27,7 +27,7 @@ class PreinscripcionController extends Controller
                 'required',
                 'string',
                 'max:500',
-                Rule::unique('seguridad.usuario', 'username'),
+                Rule::unique('pgsql.seguridad.usuario', 'username'),
             ],
             'password' => ['required', 'string', 'min:6'],
             'correo' => ['required', 'email', 'max:100'],
@@ -40,7 +40,7 @@ class PreinscripcionController extends Controller
             'fecha_nacimiento' => ['required', 'date'],
             'genero' => ['required', 'string', 'max:100'],
             'cod_titulo_bachiller' => ['required', 'string'],
-            'id_carrera' => ['nullable', 'string', 'max:50', Rule::exists('academico.carrera', 'codigo')],
+            'id_carrera' => ['nullable', 'string', 'max:50', Rule::exists('pgsql.academico.carrera', 'codigo')],
             'descripcion' => ['required_with:id_carrera', 'nullable', 'string'],
         ]);
 

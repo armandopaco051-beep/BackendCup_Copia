@@ -27,7 +27,7 @@ class PagoMatriculaController extends Controller
         $postulante = Postulante::where('username_postulante', $username)->firstOrFail();
 
         $validated = $request->validate([
-            'registrado_por' => ['nullable', 'string', 'exists:seguridad.usuario,username'],
+            'registrado_por' => ['nullable', 'string', 'exists:pgsql.seguridad.usuario,username'],
             'observacion' => ['nullable', 'string'],
         ]);
 

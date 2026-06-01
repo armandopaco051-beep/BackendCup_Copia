@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 
 class Docente extends Model
 {
-    protected $table = 'academico.docente';
+    use HasPostgresSchema;
+
+    protected string $schema = 'academico';
+
+    protected $table = 'docente';
 
     protected $primaryKey = 'username_docente';
 

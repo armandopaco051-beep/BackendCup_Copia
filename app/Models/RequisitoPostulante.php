@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 
 class RequisitoPostulante extends Model
 {
-    protected $table = 'academico.requisito_postulante';
+    use HasPostgresSchema;
+
+    protected string $schema = 'academico';
+
+    protected $table = 'requisito_postulante';
 
     public $timestamps = false;
 

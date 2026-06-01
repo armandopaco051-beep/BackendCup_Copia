@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -12,7 +13,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 #[Hidden(['password'])]
 class Usuario extends Authenticatable
 {
-    protected $table = 'seguridad.usuario';
+    use HasPostgresSchema;
+
+    protected string $schema = 'seguridad';
+
+    protected $table = 'usuario';
 
     protected $primaryKey = 'username';
 

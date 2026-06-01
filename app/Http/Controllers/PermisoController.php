@@ -19,7 +19,7 @@ class PermisoController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:500', Rule::unique('seguridad.permiso', 'nombre')],
+            'nombre' => ['required', 'string', 'max:500', Rule::unique('pgsql.seguridad.permiso', 'nombre')],
         ]);
 
         $permiso = Permiso::create($validated);
@@ -44,7 +44,7 @@ class PermisoController extends Controller
                 'required',
                 'string',
                 'max:500',
-                Rule::unique('seguridad.permiso', 'nombre')->ignore($permiso->codigo, 'codigo'),
+                Rule::unique('pgsql.seguridad.permiso', 'nombre')->ignore($permiso->codigo, 'codigo'),
             ],
         ]);
 

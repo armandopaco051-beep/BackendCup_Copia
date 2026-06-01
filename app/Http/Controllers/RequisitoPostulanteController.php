@@ -29,7 +29,7 @@ class RequisitoPostulanteController extends Controller
             'validado_por' => [
                 'nullable',
                 'string',
-                Rule::exists('seguridad.usuario', 'username'),
+                Rule::exists('pgsql.seguridad.usuario', 'username'),
             ],
         ]);
 
