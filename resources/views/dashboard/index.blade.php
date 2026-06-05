@@ -4,10 +4,13 @@
 
 @section('content')
 <main class="cup-dashboard" data-page="dashboard">
+    @include('dashboard.partials.sidebar', ['active' => 'dashboard'])
+    <button class="sidebar-scrim" type="button" data-sidebar-overlay aria-label="Cerrar menu"></button>
+
     <header class="cup-topbar">
-        <a class="cup-icon-button" href="/" aria-label="Inicio">
+        <button class="cup-icon-button" type="button" data-toggle-sidebar aria-label="Abrir menu">
             <span></span>
-        </a>
+        </button>
 
         <label class="cup-search" aria-label="Buscar">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -25,7 +28,7 @@
                 </svg>
             </button>
             <a class="cup-avatar" href="/dashboard/perfil" aria-label="Perfil">AD</a>
-            <button id="logoutButton" class="cup-ghost-button" type="button" aria-label="Cerrar sesion">
+            <button class="cup-ghost-button" type="button" aria-label="Cerrar sesion" data-logout>
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                     <path d="m16 17 5-5-5-5"></path>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Usuario;
+use App\Models\Bitacora;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,11 @@ class AuthController extends Controller
         /** @var Usuario $usuario */
         $usuario = Auth::user()->load('rol.permisos', 'postulante', 'docente', 'administrativo');
 
+        Bitacora::registrar('iniciar_sesion', 'autenticacion', 'Inicio de sesion en el portal.', [
+            'username' => $usuario->username,
+            'tipo' => $usuario->tipo,
+        ], $request);
+
         return response()->json([
             'message' => 'Sesion iniciada correctamente.',
             'usuario' => $this->formatUsuario($usuario),
@@ -46,6 +52,14 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        /** @var Usuario|null $usuario */
+        $usuario = Auth::user();
+
+        Bitacora::registrar('cerrar_sesion', 'autenticacion', 'Cierre de sesion en el portal.', [
+            'username' => $usuario?->username,
+            'tipo' => $usuario?->tipo,
+        ], $request);
+
         Auth::logout();
 
         $request->session()->invalidate();

@@ -62,7 +62,7 @@ class UsuarioController extends Controller
             'usuario' => $this->formatUsuario($usuario),
         ], 201);
     }
-
+ /* esta funcion hace la consulta de un usuario especifico */
     public function show(Usuario $usuario): JsonResponse
     {
         $usuario->load('rol.permisos', 'postulante', 'docente', 'administrativo');
@@ -72,6 +72,7 @@ class UsuarioController extends Controller
         ]);
     }
 
+    /* esta funcion hace la actualizacion de un usuario especifico */
     public function update(Request $request, Usuario $usuario): JsonResponse
     {
         $validated = $request->validate([
@@ -120,7 +121,8 @@ class UsuarioController extends Controller
             'usuario' => $this->formatUsuario($usuario),
         ]);
     }
-
+    
+    /* esta funcion hace la eliminacion de un usuario especifico */
     public function destroy(Usuario $usuario): JsonResponse
     {
         DB::transaction(function () use ($usuario): void {

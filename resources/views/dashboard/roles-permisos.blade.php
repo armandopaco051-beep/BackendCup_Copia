@@ -80,8 +80,6 @@
                 </form>
             </article>
         </section>
-
-        <pre id="securityOutput" class="module-output"></pre>
     </section>
 </main>
 @endsection

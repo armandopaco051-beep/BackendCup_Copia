@@ -74,7 +74,7 @@
 
             <div class="form-footer">
                 <span>No tienes cuenta?</span>
-                <a href="/login" aria-disabled="true">Registrate como postulante</a>
+                <a href="/registro-postulante">Registrate como postulante</a>
             </div>
         </form>
     </section>

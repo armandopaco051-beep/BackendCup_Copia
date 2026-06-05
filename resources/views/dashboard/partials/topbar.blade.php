@@ -5,5 +5,5 @@
         <p>{{ $description }}</p>
         <small id="dashboardUser" class="session-chip">Cargando sesion...</small>
     </div>
-    <button id="logoutButton" class="secondary-action" type="button">Cerrar sesion</button>
+    <button class="secondary-action" type="button" data-logout>Cerrar sesion</button>
 </header>

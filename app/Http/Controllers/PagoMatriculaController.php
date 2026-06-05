@@ -22,6 +22,16 @@ class PagoMatriculaController extends Controller
 {
     private const MONTO_MATRICULA = '700.00';
 
+    public function configuracion(): JsonResponse
+    {
+        return response()->json([
+            'caso_uso' => 'CU-08 Registrar pago de matricula',
+            'stripe_key' => config('services.stripe.key'),
+            'monto' => self::MONTO_MATRICULA,
+            'moneda' => strtoupper((string) config('services.stripe.currency')),
+        ]);
+    }
+
     public function crearIntento(Request $request, string $username): JsonResponse
     {
         $postulante = Postulante::where('username_postulante', $username)->firstOrFail();

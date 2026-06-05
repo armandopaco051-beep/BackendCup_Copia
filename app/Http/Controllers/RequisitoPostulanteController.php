@@ -53,7 +53,9 @@ class RequisitoPostulanteController extends Controller
 
         return response()->json([
             'caso_uso' => 'CU-07 Validar requisitos fisicos',
-            'message' => 'Requisitos fisicos registrados correctamente.',
+            'message' => $estado === 'validado'
+                ? 'Requisitos fisicos validados correctamente.'
+                : 'Requisitos fisicos guardados. Aun faltan documentos por validar.',
             'estado' => $estado,
             'requisitos' => $requisitos,
         ]);

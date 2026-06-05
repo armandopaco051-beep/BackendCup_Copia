@@ -18,7 +18,7 @@
                 <h2 id="profileName">Cargando perfil...</h2>
                 <p id="profileRole">Esperando respuesta del servidor.</p>
             </div>
-            <pre id="profileOutput" class="module-output"></pre>
+            <div id="profileFields" class="profile-fields"></div>
         </article>
     </section>
 </main>

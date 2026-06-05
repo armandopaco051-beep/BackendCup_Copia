@@ -66,7 +66,7 @@
 
                 <form id="createUserForm" class="portal-form">
                     <div class="form-grid">
-                        <label>Usuario<input name="username" required placeholder="docente1"></label>
+                        <label>Usuario<input name="username" required maxlength="500" pattern="[A-Za-z0-9_.-]{3,500}" placeholder="docente1"></label>
                         <label>Contrasena<input name="password" type="password" required minlength="6" placeholder="123456"></label>
                         <label>Tipo
                             <select name="tipo" required>
@@ -75,7 +75,7 @@
                             </select>
                         </label>
                         <label>Nombre<input name="nombre" required placeholder="Nombre completo"></label>
-                        <label>Telefono<input name="telefono" placeholder="70000000"></label>
+                        <label>Telefono<input name="telefono" maxlength="10" pattern="[0-9]{7,10}" placeholder="70000000"></label>
                         <label>Ciudad<input name="ciudad" placeholder="Santa Cruz"></label>
                         <label>Especializacion<input name="especializacion" placeholder="Sistemas"></label>
                         <label>Maestria<input name="maestria" placeholder="Educacion Superior"></label>
@@ -94,14 +94,12 @@
                 </div>
 
                 <form id="assignRoleForm" class="portal-form">
-                    <label>Usuario<input name="username" required placeholder="docente1"></label>
-                    <label>ID rol<input name="codigo_rol" type="number" required placeholder="2"></label>
+                    <label>Usuario<input name="username" required maxlength="500" pattern="[A-Za-z0-9_.-]{3,500}" placeholder="docente1"></label>
+                    <label>ID rol<input name="codigo_rol" type="number" min="1" required placeholder="2"></label>
                     <button class="secondary-action" type="submit">Asignar rol</button>
                 </form>
             </article>
         </section>
-
-        <pre id="usersOutput" class="module-output"></pre>
     </section>
 </main>
 @endsection

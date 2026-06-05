@@ -22,7 +22,7 @@
                     </div>
                 </div>
                 <form id="paymentIntentForm" class="portal-form">
-                    <label>Usuario postulante<input name="username" required placeholder="postulante1"></label>
+                    <label>Usuario postulante<input name="username" required maxlength="500" placeholder="PRE-000001"></label>
                     <label>Registrado por<input name="registrado_por" placeholder="admin"></label>
                     <label>Observacion<textarea name="observacion" rows="3">Pago de matricula con tarjeta mediante Stripe</textarea></label>
                     <button class="primary-action" type="submit"><span>Crear intento</span></button>
@@ -38,13 +38,26 @@
                     </div>
                 </div>
                 <form id="paymentStatusForm" class="portal-form">
-                    <label>Usuario<input name="username" required placeholder="postulante1"></label>
+                    <label>Usuario<input name="username" required maxlength="500" placeholder="PRE-000001"></label>
                     <button class="secondary-action" type="submit">Consultar pago</button>
                 </form>
             </article>
         </section>
 
-        <pre id="paymentOutput" class="module-output"></pre>
+        <section class="module-card payment-result-card">
+            <div class="module-head">
+                <span>Resultado</span>
+                <div>
+                    <h2>Estado del pago</h2>
+                    <p>El sistema mostrara si el pago esta pendiente, confirmado o si hubo algun error.</p>
+                </div>
+            </div>
+
+            <div id="paymentOutput" class="payment-status-panel">
+                <span class="status-pill">Sin consulta</span>
+                <p>Crea un intento o consulta un postulante para ver el estado del pago.</p>
+            </div>
+        </section>
     </section>
 </main>
 @endsection

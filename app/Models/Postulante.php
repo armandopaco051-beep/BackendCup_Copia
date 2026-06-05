@@ -21,6 +21,10 @@ class Postulante extends Model
 
     public $timestamps = false;
 
+    protected $attributes = [
+        'estado' => 'pendiente',
+    ];
+
     protected $fillable = [
         'username_postulante',
         'correo',

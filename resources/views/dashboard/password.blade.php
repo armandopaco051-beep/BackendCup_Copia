@@ -14,12 +14,11 @@
 
         <article class="module-card form-panel">
             <form id="resetPasswordForm" class="portal-form">
-                <label>Usuario<input name="username" required placeholder="docente1"></label>
+                <label>Usuario<input name="username" required maxlength="500" pattern="[A-Za-z0-9_.-]{3,500}" placeholder="docente1"></label>
                 <label>Nueva contrasena<input name="password" type="password" required minlength="6"></label>
                 <label>Confirmacion<input name="password_confirmation" type="password" required minlength="6"></label>
                 <button class="primary-action" type="submit"><span>Restablecer</span></button>
             </form>
-            <pre id="passwordOutput" class="module-output"></pre>
         </article>
     </section>
 </main>

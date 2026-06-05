@@ -1,10 +1,17 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AulaController;
+use App\Http\Controllers\BitacoraController;
+use App\Http\Controllers\CalificacionController;
+use App\Http\Controllers\CarreraController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DistribucionGrupoController;
 use App\Http\Controllers\HabilitacionPostulanteController;
+use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PagoMatriculaController;
 use App\Http\Controllers\PermisoController;
+use App\Http\Controllers\PeriodoAcademicoController;
 use App\Http\Controllers\PreinscripcionController;
 use App\Http\Controllers\RequisitoPostulanteController;
 use App\Http\Controllers\RolController;
@@ -13,7 +20,42 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/dashboard', [DashboardController::class, 'index']);
 
+Route::middleware(['web', 'auth'])->group(function (): void {
+    Route::get('/bitacora', [BitacoraController::class, 'index']);
+    Route::post('/bitacora/movimiento', [BitacoraController::class, 'movimiento']);
+});
+
+// Validar cupos por aula segun ocupacion registrada en horarios.
+Route::get('/aulas/cupos', [AulaController::class, 'cupos']);
+Route::apiResource('aulas', AulaController::class)->parameters([
+    'aulas' => 'aula',
+]);
+
+// CU-13: Calcular distribucion de grupos.
+Route::get('/distribucion-grupos/calcular', [DistribucionGrupoController::class, 'calcular']);
+Route::post('/distribucion-grupos/generar', [DistribucionGrupoController::class, 'generar']);
+
+Route::apiResource('periodos-academicos', PeriodoAcademicoController::class)->parameters([
+    'periodos-academicos' => 'periodoAcademico',
+]);
+
+// Catalogos academicos para alimentar preinscripciones y calificaciones.
+Route::get('/carreras-habilitadas', [CarreraController::class, 'habilitadas']);
+Route::apiResource('carreras', CarreraController::class)->parameters([
+    'carreras' => 'carrera',
+]);
+Route::apiResource('materias', MateriaController::class)->parameters([
+    'materias' => 'materia',
+]);
+
+// Registrar calificaciones y calcular promedio automaticamente.
+Route::get('/calificaciones/opciones', [CalificacionController::class, 'opciones']);
+Route::apiResource('calificaciones', CalificacionController::class)->parameters([
+    'calificaciones' => 'calificacion',
+]);
+
 // CU-06: Registrar preinscripcion del bachiller para iniciar admision.
+Route::get('/preinscripciones', [PreinscripcionController::class, 'index']);
 Route::post('/preinscripciones', [PreinscripcionController::class, 'store']);
 
 Route::get('/usuarios', [UsuarioController::class, 'index']);
@@ -46,11 +88,13 @@ Route::post('/postulantes/{username}/requisitos', [RequisitoPostulanteController
 Route::get('/postulantes/{username}/requisitos', [RequisitoPostulanteController::class, 'show']);   
 
 // CU-08: Registrar pago de matricula mediante Stripe.
+Route::get('/pago-matricula/configuracion', [PagoMatriculaController::class, 'configuracion']);
 Route::post('/postulantes/{username}/pago-matricula/intento', [PagoMatriculaController::class, 'crearIntento']);
 Route::get('/postulantes/{username}/pago-matricula', [PagoMatriculaController::class, 'show']);
 Route::post('/postulantes/{username}/pago-matricula/confirmar', [PagoMatriculaController::class, 'confirmar']);
 Route::post('/stripe/webhook', [PagoMatriculaController::class, 'webhook']);
 
 // CU-09: Habilitar postulante tras validar requisitos y pago.
+Route::get('/habilitaciones', [HabilitacionPostulanteController::class, 'index']);
 Route::get('/postulantes/{username}/habilitacion', [HabilitacionPostulanteController::class, 'show']);
 Route::post('/postulantes/{username}/habilitacion', [HabilitacionPostulanteController::class, 'store']);
