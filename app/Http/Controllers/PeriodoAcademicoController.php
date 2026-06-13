@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PeriodoAcademico;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -74,7 +75,13 @@ class PeriodoAcademicoController extends Controller
 
     public function destroy(PeriodoAcademico $periodoAcademico): JsonResponse
     {
-        $periodoAcademico->delete();
+        try {
+            $periodoAcademico->delete();
+        } catch (QueryException) {
+            return response()->json([
+                'message' => 'No se puede eliminar este periodo porque ya esta relacionado con otros registros.',
+            ], 409);
+        }
 
         return response()->json([
             'message' => 'Periodo academico eliminado correctamente.',
@@ -110,18 +117,42 @@ class PeriodoAcademicoController extends Controller
     private function payload(array $validated, array $columns): array
     {
         $payload = [];
+        $yearColumn = $this->yearColumn($columns);
 
         if (array_key_exists('semestre', $validated)) {
             $payload['semestre'] = $validated['semestre'];
         }
 
         if (array_key_exists('anio', $validated)) {
-            $payload['año'] = $validated['anio'];
+            $payload[$yearColumn] = $validated['anio'];
         }
 
         foreach ($this->extendedColumns as $column) {
             if (array_key_exists($column, $validated) && in_array($column, $columns, true)) {
                 $payload[$column] = $validated[$column];
+            }
+        }
+
+        $payload = $this->mirrorProcessWindow($payload, $columns);
+
+        return $payload;
+    }
+
+    private function mirrorProcessWindow(array $payload, array $columns): array
+    {
+        if (array_key_exists('fecha_inicio_preinscripcion', $payload)) {
+            foreach (['fecha_inicio_requisitos', 'fecha_inicio_pago'] as $column) {
+                if (in_array($column, $columns, true)) {
+                    $payload[$column] = $payload['fecha_inicio_preinscripcion'];
+                }
+            }
+        }
+
+        if (array_key_exists('fecha_fin_preinscripcion', $payload)) {
+            foreach (['fecha_fin_requisitos', 'fecha_fin_pago'] as $column) {
+                if (in_array($column, $columns, true)) {
+                    $payload[$column] = $payload['fecha_fin_preinscripcion'];
+                }
             }
         }
 
@@ -141,6 +172,7 @@ class PeriodoAcademicoController extends Controller
     {
         return [
             'columnas_disponibles' => $columns,
+            'columna_anio' => $this->yearColumn($columns),
             'soporta_fechas' => count(array_intersect($this->extendedColumns, $columns)) > 0,
             'columnas_faltantes' => array_values(array_diff($this->extendedColumns, $columns)),
         ];
@@ -148,13 +180,16 @@ class PeriodoAcademicoController extends Controller
 
     private function formatPeriodo(PeriodoAcademico $periodo, array $columns): array
     {
+        $yearColumn = $this->yearColumn($columns);
+        $year = $periodo->{$yearColumn};
+
         $data = [
             'id' => $periodo->id,
             'semestre' => $periodo->semestre,
-            'anio' => $periodo->{'año'},
+            'anio' => $year,
             'nombre' => in_array('nombre', $columns, true)
                 ? $periodo->nombre
-                : 'Periodo CUP '.$periodo->{'año'}.'-'.$periodo->semestre,
+                : 'Periodo CUP '.$year.'-'.$periodo->semestre,
         ];
 
         foreach ($this->extendedColumns as $column) {
@@ -164,5 +199,20 @@ class PeriodoAcademicoController extends Controller
         }
 
         return $data;
+    }
+
+    private function yearColumn(array $columns): string
+    {
+        $spanishColumn = "a\u{00F1}o";
+
+        if (in_array($spanishColumn, $columns, true)) {
+            return $spanishColumn;
+        }
+
+        if (in_array('anio', $columns, true)) {
+            return 'anio';
+        }
+
+        return $spanishColumn;
     }
 }

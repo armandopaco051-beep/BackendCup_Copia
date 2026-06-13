@@ -7,11 +7,15 @@ export function csrfToken() {
 
 export async function apiRequest(url, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
+    const token = csrfToken();
+    const csrfHeader = token ? { 'X-CSRF-TOKEN': token } : {};
+
     const response = await fetch(url, {
         credentials: 'same-origin',
         headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
+            ...csrfHeader,
             ...options.headers,
         },
         ...options,
@@ -80,6 +84,11 @@ export function statusClass(type) {
         inactivo: 'is-rejected',
         aprobado: 'is-admitted',
         reprobado: 'is-rejected',
+        presente: 'is-admitted',
+        retraso: 'is-validated',
+        falta: 'is-rejected',
+        propuesto: 'is-validated',
+        confirmado: 'is-admitted',
     }[type] || '';
 }
 

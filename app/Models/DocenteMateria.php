@@ -5,15 +5,15 @@ namespace App\Models;
 use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
 
-class Administrativo extends Model
+class DocenteMateria extends Model
 {
     use HasPostgresSchema;
 
     protected string $schema = 'academico';
 
-    protected $table = 'administrativo';
+    protected $table = 'docente_materia';
 
-    protected $primaryKey = 'username_administrativo';
+    protected $primaryKey = 'username_docente';
 
     public $incrementing = false;
 
@@ -22,10 +22,8 @@ class Administrativo extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'username_administrativo',
-        'nombre',
-        'correo',
-        'telefono',
-        'ciudad',
+        'username_docente',
+        'id_materia',
+        'created_at',
     ];
 }

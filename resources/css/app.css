@@ -372,10 +372,18 @@ a {
     grid-template-columns: minmax(360px, 0.72fr) minmax(520px, 1fr);
 }
 
+.register-shell.is-payment-mode {
+    grid-template-columns: minmax(300px, 0.55fr) minmax(620px, 1fr);
+}
+
 .register-panel {
     align-items: start;
     justify-items: center;
     overflow-y: auto;
+}
+
+.register-shell.is-payment-mode .register-panel {
+    padding: clamp(24px, 4vw, 46px);
 }
 
 .register-form {
@@ -443,11 +451,63 @@ a {
     box-shadow: none;
 }
 
-.public-payment {
-    width: min(100%, 960px);
+.public-lookup {
     display: grid;
-    grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1fr);
-    gap: clamp(24px, 4vw, 48px);
+    gap: 12px;
+    margin: 0 0 18px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdff;
+}
+
+.public-lookup strong,
+.public-lookup span {
+    display: block;
+}
+
+.public-lookup strong {
+    color: var(--ficct-blue-950);
+    font-size: 15px;
+}
+
+.public-lookup span {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.public-lookup-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px;
+    gap: 10px;
+}
+
+.public-lookup-form input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: 0;
+}
+
+.public-lookup-form input:focus {
+    border-color: var(--ficct-blue-500);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.public-lookup .form-alert {
+    margin: 0;
+}
+
+.public-payment {
+    width: min(100%, 900px);
+    display: grid;
+    grid-template-columns: minmax(250px, 0.78fr) minmax(300px, 1fr);
+    gap: clamp(18px, 3vw, 34px);
     align-items: center;
 }
 
@@ -459,18 +519,20 @@ a {
     margin: 0;
     color: var(--ficct-blue-950);
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(46px, 6vw, 72px);
+    font-size: clamp(40px, 4.8vw, 58px);
     font-weight: 500;
-    line-height: 1.05;
+    line-height: 1.08;
     letter-spacing: 0;
+    overflow-wrap: normal;
+    text-wrap: balance;
 }
 
 .public-payment-summary p {
-    max-width: 420px;
-    margin: 28px 0 30px;
+    max-width: 340px;
+    margin: 22px 0 24px;
     color: #456084;
-    font-size: 17px;
-    line-height: 1.65;
+    font-size: 15px;
+    line-height: 1.6;
 }
 
 .public-payment-summary > small,
@@ -482,9 +544,9 @@ a {
 }
 
 .public-payment-ticket {
-    max-width: 360px;
-    margin-bottom: 28px;
-    padding: 24px;
+    max-width: 330px;
+    margin-bottom: 22px;
+    padding: 20px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--white);
@@ -494,7 +556,7 @@ a {
 .public-payment-ticket {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 20px;
+    gap: 16px;
 }
 
 .public-payment-ticket span {
@@ -526,8 +588,9 @@ a {
     margin-top: 0;
     color: #b75a00;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 32px;
+    font-size: clamp(26px, 3vw, 32px);
     font-weight: 500;
+    text-align: right;
 }
 
 .public-payment-card {
@@ -552,24 +615,33 @@ a {
 .public-payment-card label {
     display: grid;
     gap: 9px;
-    padding: 0 30px;
-    margin-top: 24px;
+    padding: 0 26px;
+    margin-top: 22px;
     color: #2d3c52;
     font-size: 13px;
     font-weight: 900;
     text-transform: uppercase;
 }
 
-.public-payment-card input,
-.stripe-field {
+.public-payment-card input {
     width: 100%;
     min-height: 50px;
-    padding: 15px 16px;
+    padding: 14px 16px;
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--white);
     color: var(--ink);
     box-shadow: none;
+}
+
+.stripe-payment-box {
+    display: grid;
+    gap: 12px;
+    padding: 22px 26px 0;
+}
+
+.stripe-payment-element {
+    width: 100%;
 }
 
 .public-payment-card input {
@@ -578,8 +650,7 @@ a {
     text-transform: none;
 }
 
-.public-payment-card input:focus,
-.stripe-field.StripeElement--focus {
+.public-payment-card input:focus {
     border-color: var(--ficct-blue-500);
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
@@ -588,7 +659,7 @@ a {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(140px, 0.7fr);
     gap: 16px;
-    padding: 0 30px;
+    padding: 0 26px;
 }
 
 .public-payment-row label {
@@ -596,18 +667,32 @@ a {
 }
 
 .public-payment-card .form-alert {
-    margin: 22px 30px 0;
+    margin: 22px 26px 0;
+}
+
+.public-payment-download {
+    width: calc(100% - 52px);
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 18px 26px 0;
+    text-decoration: none;
+}
+
+.public-payment-download[hidden] {
+    display: none;
 }
 
 .public-payment-card .primary-action {
-    width: calc(100% - 60px);
-    margin: 24px 30px 18px;
+    width: calc(100% - 52px);
+    margin: 24px 26px 18px;
     background: #0b172a;
     box-shadow: 0 14px 28px rgba(6, 27, 58, 0.18);
 }
 
 .public-payment-card > small {
-    padding: 0 30px 26px;
+    padding: 0 26px 24px;
     text-align: center;
 }
 
@@ -2833,12 +2918,198 @@ th {
     line-height: 1.3;
 }
 
+.attendance-roster {
+    display: grid;
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.attendance-roster-list {
+    display: grid;
+    gap: 10px;
+}
+
+.attendance-student {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.attendance-student strong,
+.attendance-student small {
+    display: block;
+}
+
+.attendance-student small {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.attendance-student fieldset {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+}
+
+.attendance-student fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.attendance-student input {
+    width: 14px;
+    height: 14px;
+}
+
+.teacher-subject-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 1.15fr) minmax(260px, 0.85fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.teacher-subject-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 4px;
+}
+
+.teacher-subject-checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+}
+
+.teacher-subject-check {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.teacher-subject-check input {
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+}
+
+.teacher-subject-check strong,
+.teacher-subject-check small {
+    display: block;
+}
+
+.teacher-subject-check small {
+    margin-top: 3px;
+    color: var(--muted);
+}
+
+.teacher-subject-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.schedule-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.schedule-summary-card h2 {
+    margin: 8px 0 6px;
+    color: var(--ink);
+    font-size: 30px;
+}
+
+.schedule-summary-card p,
+.schedule-rules p {
+    margin: 0;
+    color: var(--muted);
+}
+
+.schedule-workspace {
+    margin-bottom: 18px;
+}
+
+.schedule-option-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.schedule-option-list span {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f8fbff;
+    color: var(--muted);
+}
+
+.schedule-option-list strong {
+    color: var(--brand);
+}
+
+.inline-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    width: fit-content;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.inline-check input {
+    width: 16px;
+    height: 16px;
+}
+
 @media (max-width: 900px) {
+    .attendance-student {
+        grid-template-columns: 1fr;
+    }
+
+    .teacher-subject-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .schedule-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
     .auth-shell {
         grid-template-columns: 1fr;
     }
 
     .register-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .register-shell.is-payment-mode {
         grid-template-columns: 1fr;
     }
 

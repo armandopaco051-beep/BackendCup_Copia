@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Carrera;
 use App\Models\Pago;
 use App\Models\Postulante;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * CU-06: Registrar preinscripcion.
@@ -40,6 +42,7 @@ class PreinscripcionController extends Controller
     public function index(): JsonResponse
     {
         $preinscripciones = Postulante::orderByDesc('username_postulante')
+            ->where('estado', '!=', 'pendiente_pago')
             ->get()
             ->map(fn (Postulante $postulante): array => $this->formatPreinscripcion($postulante))
             ->values();
@@ -70,8 +73,11 @@ class PreinscripcionController extends Controller
         ]);
 
         $carreras = $this->carrerasSeleccionadas($validated);
+        $this->prevenirPreinscripcionDuplicada($validated['ci'], $validated['correo']);
 
         $postulante = DB::transaction(function () use ($validated, $carreras): Postulante {
+            $this->eliminarPreinscripcionesPendientes($validated['ci'], $validated['correo']);
+
             $username = $this->generarUsernamePostulante();
 
             $usuario = Usuario::create([
@@ -93,7 +99,7 @@ class PreinscripcionController extends Controller
                 'fecha_nacimiento' => $validated['fecha_nacimiento'],
                 'genero' => $validated['genero'],
                 'cod_titulo_bachiller' => $validated['cod_titulo_bachiller'],
-                'estado' => 'pendiente',
+                'estado' => 'pendiente_pago',
             ]);
 
             foreach ($carreras as $carrera) {
@@ -109,7 +115,7 @@ class PreinscripcionController extends Controller
 
         return response()->json([
             'caso_uso' => 'CU-06 Registrar preinscripcion',
-            'message' => 'Preinscripcion registrada correctamente. Las credenciales de acceso se enviaran al correo cuando el postulante sea habilitado.',
+            'message' => 'Datos registrados temporalmente. Completa el pago de matricula para confirmar la preinscripcion.',
             'preinscripcion' => [
                 'username' => $postulante->username_postulante,
                 'folio' => strtoupper($postulante->username_postulante),
@@ -124,9 +130,132 @@ class PreinscripcionController extends Controller
                 'fecha_nacimiento' => $postulante->fecha_nacimiento,
                 'genero' => $postulante->genero,
                 'cod_titulo_bachiller' => $postulante->cod_titulo_bachiller,
+                'estado' => $postulante->estado,
                 'carreras' => $this->formatCarreras($postulante->username_postulante),
             ],
         ], 201);
+    }
+
+    public function consultarPorCi(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ci' => ['required', 'string', 'max:100'],
+        ]);
+
+        $postulante = Postulante::where('ci', $validated['ci'])
+            ->where('estado', '!=', 'pendiente_pago')
+            ->latest('username_postulante')
+            ->first();
+
+        if (! $postulante) {
+            return response()->json([
+                'message' => 'No existe una preinscripcion confirmada para ese carnet.',
+            ], 404);
+        }
+
+        return response()->json([
+            'preinscripcion' => $this->formatPreinscripcion($postulante),
+            'puede_editar' => $this->puedeEditar($postulante),
+        ]);
+    }
+
+    public function updatePublic(Request $request, string $username): JsonResponse
+    {
+        $postulante = Postulante::where('username_postulante', $username)
+            ->where('estado', '!=', 'pendiente_pago')
+            ->firstOrFail();
+
+        if (! $this->puedeEditar($postulante)) {
+            throw ValidationException::withMessages([
+                'preinscripcion' => ['La preinscripcion ya no puede editarse porque fue validada o habilitada.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'correo' => ['required', 'email', 'max:100'],
+            'ci' => ['required', 'string', 'max:100'],
+            'nombre' => ['required', 'string', 'max:100'],
+            'telefono' => ['required', 'string', 'max:10'],
+            'ciudad' => ['required', 'string', 'max:100'],
+            'colegio_procedencia' => ['required', 'string'],
+            'direccion' => ['required', 'string'],
+            'fecha_nacimiento' => ['required', 'date'],
+            'genero' => ['required', 'string', 'max:100'],
+            'cod_titulo_bachiller' => ['required', 'string'],
+            'carreras' => ['nullable', 'array', 'max:2'],
+            'carreras.*.id_carrera' => ['required_with:carreras', 'string', 'max:50', Rule::exists('pgsql.academico.carrera', 'codigo')],
+            'carreras.*.descripcion' => ['nullable', 'string'],
+        ]);
+
+        $duplicado = Postulante::where('username_postulante', '!=', $postulante->username_postulante)
+            ->where(function ($query) use ($validated): void {
+                $query->where('ci', $validated['ci'])
+                    ->orWhere('correo', $validated['correo']);
+            })
+            ->where('estado', '!=', 'pendiente_pago')
+            ->exists();
+
+        if ($duplicado) {
+            throw ValidationException::withMessages([
+                'ci' => ['Ya tiene una preinscripcion realizada.'],
+            ]);
+        }
+
+        $carreras = $this->carrerasSeleccionadas($validated);
+
+        DB::transaction(function () use ($postulante, $validated, $carreras): void {
+            $postulante->update([
+                'correo' => $validated['correo'],
+                'ci' => $validated['ci'],
+                'nombre' => $validated['nombre'],
+                'telefono' => $validated['telefono'],
+                'ciudad' => $validated['ciudad'],
+                'colegio_procedencia' => $validated['colegio_procedencia'],
+                'direccion' => $validated['direccion'],
+                'fecha_nacimiento' => $validated['fecha_nacimiento'],
+                'genero' => $validated['genero'],
+                'cod_titulo_bachiller' => $validated['cod_titulo_bachiller'],
+            ]);
+
+            PostulanteCarrera::where('username_postulante', $postulante->username_postulante)->delete();
+
+            foreach ($carreras as $carrera) {
+                PostulanteCarrera::create([
+                    'id_carrera' => $carrera['id_carrera'],
+                    'username_postulante' => $postulante->username_postulante,
+                    'descripcion' => $carrera['descripcion'],
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Preinscripcion actualizada correctamente.',
+            'preinscripcion' => $this->formatPreinscripcion($postulante->refresh()),
+        ]);
+    }
+
+    public function formularioPdf(string $username)
+    {
+        $postulante = Postulante::where('username_postulante', $username)->firstOrFail();
+        $pago = Pago::where('username_postulante', $username)
+            ->whereIn('estado', ['pagado', 'registrado'])
+            ->latest('id')
+            ->first();
+
+        abort_if(! $pago, Response::HTTP_FORBIDDEN, 'El formulario solo esta disponible despues de confirmar el pago de matricula.');
+
+        $carreras = $this->formatCarreras($postulante->username_postulante);
+        $logoPath = public_path('assets/brand/ficct-escudo.png');
+
+        $pdf = Pdf::loadView('pdf.preinscripcion-formulario', [
+            'postulante' => $postulante,
+            'pago' => $pago,
+            'carreras' => $carreras,
+            'logoPath' => file_exists($logoPath) ? $logoPath : null,
+            'fechaEmision' => now(),
+        ])->setPaper('letter');
+
+        return $pdf->download('formulario-preinscripcion-'.$postulante->username_postulante.'.pdf');
     }
 
     private function generarUsernamePostulante(): string
@@ -144,6 +273,61 @@ class PreinscripcionController extends Controller
         throw ValidationException::withMessages([
             'username' => ['No se pudo generar un folio disponible para el postulante.'],
         ]);
+    }
+
+    private function prevenirPreinscripcionDuplicada(string $ci, string $correo): void
+    {
+        $postulantes = Postulante::where(function ($query) use ($ci, $correo): void {
+            $query->where('ci', $ci)
+                ->orWhere('correo', $correo);
+        })->get();
+
+        foreach ($postulantes as $postulante) {
+            $pago = Pago::where('username_postulante', $postulante->username_postulante)
+                ->latest('id')
+                ->first();
+
+            if ($postulante->estado !== 'pendiente_pago'
+                || ($pago && in_array($pago->estado, ['pagado', 'registrado'], true))) {
+                throw ValidationException::withMessages([
+                    'ci' => ['Ya tiene una preinscripcion realizada.'],
+                ]);
+            }
+        }
+    }
+
+    private function eliminarPreinscripcionesPendientes(string $ci, string $correo): void
+    {
+        $pendientes = Postulante::where('estado', 'pendiente_pago')
+            ->where(function ($query) use ($ci, $correo): void {
+                $query->where('ci', $ci)
+                    ->orWhere('correo', $correo);
+            })
+            ->get();
+
+        foreach ($pendientes as $postulante) {
+            $username = $postulante->username_postulante;
+
+            Pago::where('username_postulante', $username)->delete();
+            PostulanteCarrera::where('username_postulante', $username)->delete();
+            RequisitoPostulante::where('username_postulante', $username)->delete();
+            $postulante->delete();
+            Usuario::where('username', $username)->delete();
+        }
+    }
+
+    private function puedeEditar(Postulante $postulante): bool
+    {
+        if (in_array($postulante->estado, ['habilitado', 'admitido'], true)) {
+            return false;
+        }
+
+        $requisitos = RequisitoPostulante::where('username_postulante', $postulante->username_postulante)->first();
+
+        return ! ($requisitos
+            && $requisitos->ci_entregado
+            && $requisitos->titulo_entregado
+            && $requisitos->libretas_entregadas);
     }
 
     private function generarPasswordTemporal(): string
@@ -178,6 +362,13 @@ class PreinscripcionController extends Controller
             'ci' => $postulante->ci,
             'nombre' => $postulante->nombre,
             'correo' => $postulante->correo,
+            'telefono' => $postulante->telefono,
+            'ciudad' => $postulante->ciudad,
+            'colegio_procedencia' => $postulante->colegio_procedencia,
+            'direccion' => $postulante->direccion,
+            'fecha_nacimiento' => $postulante->fecha_nacimiento,
+            'genero' => $postulante->genero,
+            'cod_titulo_bachiller' => $postulante->cod_titulo_bachiller,
             'carrera' => $carreras
                 ? collect($carreras)->pluck('nombre')->join(' / ')
                 : 'Sin carrera',
@@ -239,6 +430,10 @@ class PreinscripcionController extends Controller
 
     private function estadoResumen(Postulante $postulante, ?Pago $pago, ?RequisitoPostulante $requisitos): array
     {
+        if ($postulante->estado === 'pendiente_pago') {
+            return ['label' => 'Pendiente de pago', 'tipo' => 'pendiente'];
+        }
+
         if (in_array($postulante->estado, ['habilitado', 'admitido'], true)) {
             return ['label' => 'Admitido', 'tipo' => 'admitido'];
         }

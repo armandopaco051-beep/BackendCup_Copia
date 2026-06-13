@@ -59,15 +59,16 @@
                 <div class="module-head">
                     <span>CU-03</span>
                     <div>
-                        <h2>Nuevo usuario</h2>
+                        <h2 id="userFormTitle">Nuevo usuario</h2>
                         <p>Registra administrativos o docentes.</p>
                     </div>
                 </div>
 
                 <form id="createUserForm" class="portal-form">
+                    <input type="hidden" name="form_mode" value="create">
                     <div class="form-grid">
                         <label>Usuario<input name="username" required maxlength="500" pattern="[A-Za-z0-9_.-]{3,500}" placeholder="docente1"></label>
-                        <label>Contrasena<input name="password" type="password" required minlength="6" placeholder="123456"></label>
+                        <label data-user-field="password">Contrasena<input name="password" type="password" required minlength="6" placeholder="123456"></label>
                         <label>Tipo
                             <select name="tipo" required>
                                 <option value="administrativo">Administrativo</option>
@@ -75,12 +76,16 @@
                             </select>
                         </label>
                         <label>Nombre<input name="nombre" required placeholder="Nombre completo"></label>
+                        <label>Correo<input name="correo" type="email" required placeholder="correo@uagrm.edu.bo"></label>
                         <label>Telefono<input name="telefono" maxlength="10" pattern="[0-9]{7,10}" placeholder="70000000"></label>
                         <label>Ciudad<input name="ciudad" placeholder="Santa Cruz"></label>
-                        <label>Especializacion<input name="especializacion" placeholder="Sistemas"></label>
-                        <label>Maestria<input name="maestria" placeholder="Educacion Superior"></label>
+                        <label data-user-field="docente">Especializacion<input name="especializacion" placeholder="Sistemas"></label>
+                        <label data-user-field="docente">Maestria<input name="maestria" placeholder="Educacion Superior"></label>
                     </div>
-                    <button class="primary-action" type="submit"><span>Crear usuario</span></button>
+                    <div class="distribution-actions">
+                        <button class="primary-action" type="submit"><span>Crear usuario</span></button>
+                        <button class="secondary-action" type="button" data-clear-user-form>Limpiar</button>
+                    </div>
                 </form>
             </article>
 

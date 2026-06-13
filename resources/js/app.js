@@ -1,11 +1,14 @@
 import { initAuth } from './modules/auth';
+import { initAsistencias } from './modules/asistencias';
 import { initAulas } from './modules/aulas';
 import { initBitacora } from './modules/bitacora';
 import { initCalificaciones } from './modules/calificaciones';
 import { initCatalogosAcademicos } from './modules/catalogos-academicos';
 import { initDashboard } from './modules/dashboard';
 import { initDistribucionGrupos } from './modules/distribucion-grupos';
+import { initDocentesMaterias } from './modules/docentes-materias';
 import { initHabilitacion } from './modules/habilitacion';
+import { initHorariosGrupos } from './modules/horarios-grupos';
 import { initPagos } from './modules/pagos';
 import { initPeriodoAcademico } from './modules/periodo-academico';
 import { initPortalSidebar } from './modules/portal-sidebar';
@@ -27,9 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initRequisitos();
     initPagos();
     initHabilitacion();
+    initHorariosGrupos();
     initPeriodoAcademico();
     initDistribucionGrupos();
+    initDocentesMaterias();
     initAulas();
     initCalificaciones();
+    initAsistencias();
     initCatalogosAcademicos();
 });

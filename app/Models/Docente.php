@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasPostgresSchema;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Model;
 
 class Docente extends Model
@@ -24,7 +25,22 @@ class Docente extends Model
     protected $fillable = [
         'username_docente',
         'nombre',
+        'correo',
+        'telefono',
+        'ciudad',
         'especializacion',
         'maestria',
     ];
+
+    public function materias(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Materia::class,
+            'academico.docente_materia',
+            'username_docente',
+            'id_materia',
+            'username_docente',
+            'id',
+        );
+    }
 }

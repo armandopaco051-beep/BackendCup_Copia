@@ -18,6 +18,7 @@ class PeriodoAcademico extends Model
     protected $fillable = [
         'semestre',
         'año',
+        'anio',
         'nombre',
         'fecha_inicio_preinscripcion',
         'fecha_fin_preinscripcion',

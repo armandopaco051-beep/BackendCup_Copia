@@ -14,8 +14,8 @@ class DashboardController extends Controller
 {
     public function index(): JsonResponse
     {
-        $postulantes = Postulante::count();
-        $preinscripciones = Usuario::where('tipo', 'postulante')->count();
+        $postulantes = Postulante::where('estado', '!=', 'pendiente_pago')->count();
+        $preinscripciones = Postulante::where('estado', '!=', 'pendiente_pago')->count();
         $matriculasPagadas = Pago::whereIn('estado', ['pagado', 'registrado'])
             ->distinct('username_postulante')
             ->count('username_postulante');
@@ -35,6 +35,7 @@ class DashboardController extends Controller
     private function preinscripcionesRecientes(): array
     {
         return Postulante::orderByDesc('username_postulante')
+            ->where('estado', '!=', 'pendiente_pago')
             ->limit(4)
             ->get()
             ->map(fn (Postulante $postulante): array => $this->formatearPostulante($postulante))

@@ -18,6 +18,10 @@ class UsuarioController extends Controller
     public function index(): JsonResponse
     {
         $usuarios = Usuario::with('rol.permisos', 'postulante', 'docente', 'administrativo')
+            ->where(function ($query): void {
+                $query->where('tipo', '!=', 'postulante')
+                    ->orWhereHas('postulante', fn ($postulante) => $postulante->where('estado', '!=', 'pendiente_pago'));
+            })
             ->orderBy('username')
             ->get()
             ->map(fn (Usuario $usuario): array => $this->formatUsuario($usuario));
@@ -173,11 +177,15 @@ class UsuarioController extends Controller
         return match ($tipo) {
             'administrativo' => $request->validate([
                 'perfil.nombre' => [$required ? 'required' : 'sometimes', 'string', 'max:500'],
+                'perfil.correo' => [$required ? 'required' : 'sometimes', 'email', 'max:100'],
                 'perfil.telefono' => [$required ? 'required' : 'sometimes', 'string', 'max:10'],
                 'perfil.ciudad' => [$required ? 'required' : 'sometimes', 'string'],
             ])['perfil'],
             'docente' => $request->validate([
                 'perfil.nombre' => [$required ? 'required' : 'sometimes', 'string', 'max:500'],
+                'perfil.correo' => [$required ? 'required' : 'sometimes', 'email', 'max:100'],
+                'perfil.telefono' => [$required ? 'required' : 'sometimes', 'string', 'max:10'],
+                'perfil.ciudad' => [$required ? 'required' : 'sometimes', 'string'],
                 'perfil.especializacion' => ['nullable', 'string'],
                 'perfil.maestria' => ['nullable', 'string'],
             ])['perfil'],

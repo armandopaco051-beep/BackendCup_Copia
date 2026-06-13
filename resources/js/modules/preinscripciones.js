@@ -17,11 +17,15 @@ let publicPayment = {
     username: null,
     stripe: null,
     elements: null,
-    cardNumber: null,
+    paymentElement: null,
+    paymentIntentId: null,
+    clientSecret: null,
     mounted: false,
+    formBound: false,
     amount: '700.00',
     currency: 'BOB',
 };
+let publicEditingUsername = null;
 
 export function initPreinscripciones() {
     if (!qs('#preinscriptionsTable') && !qs('#preinscriptionForm')) {
@@ -31,6 +35,13 @@ export function initPreinscripciones() {
     qs('[data-load-preinscriptions]')?.addEventListener('click', loadPreinscriptions);
     qs('#preinscriptionSearch')?.addEventListener('input', (event) => renderPreinscriptions(event.currentTarget.value));
     qs('#preinscriptionForm')?.addEventListener('submit', savePreinscription);
+    qs('[data-public-lookup]')?.addEventListener('click', lookupPublicPreinscription);
+    qs('#publicLookupCi')?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            lookupPublicPreinscription();
+        }
+    });
 
     loadCareers();
     loadPreinscriptions();
@@ -119,7 +130,7 @@ function renderPreinscriptions(filter = '') {
             <td><span class="status-pill ${statusClass(item.estado?.tipo)}">${escapeHtml(item.estado?.label || 'Pendiente')}</span></td>
             <td class="table-actions">
                 <a href="/dashboard/requisitos" aria-label="Ver postulante ${escapeHtml(item.username)}">Ver</a>
-                <a href="#preinscriptionFormPanel" aria-label="Editar postulante ${escapeHtml(item.username)}">Editar</a>
+                <button type="button" data-edit-preinscription="${escapeHtml(item.username)}" aria-label="Editar postulante ${escapeHtml(item.username)}">Editar</button>
             </td>
         </tr>
     `).join('') || '<tr><td colspan="7">No hay preinscripciones registradas.</td></tr>';
@@ -127,6 +138,20 @@ function renderPreinscriptions(filter = '') {
     if (count) {
         count.textContent = `${filtered.length} resultado(s)`;
     }
+
+    qsa('[data-edit-preinscription]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const preinscription = preinscriptions.find((item) => item.username === button.dataset.editPreinscription);
+
+            if (!preinscription) {
+                setMessage('#preinscriptionOutput', 'No se pudo cargar la preinscripcion seleccionada.');
+                return;
+            }
+
+            fillPublicPreinscriptionForm(preinscription);
+            setMessage('#preinscriptionOutput', `Editando ${preinscription.folio}. Guarda los cambios con el boton Actualizar preinscripcion.`);
+        });
+    });
 }
 
 async function savePreinscription(event) {
@@ -160,6 +185,20 @@ async function savePreinscription(event) {
     ].filter(Boolean);
 
     try {
+        if (publicEditingUsername) {
+            const data = await apiRequest(`/api/preinscripciones/${encodeURIComponent(publicEditingUsername)}`, {
+                method: 'PUT',
+                body: JSON.stringify(values),
+            });
+
+            setMessage('#preinscriptionOutput', data);
+            setMessage('#publicLookupOutput', 'Preinscripcion actualizada correctamente.');
+            publicEditingUsername = null;
+            qs('#preinscriptionForm button[type="submit"] span').textContent = 'Registrar preinscripcion';
+            loadPreinscriptions();
+            return;
+        }
+
         const data = await apiRequest('/api/preinscripciones', {
             method: 'POST',
             body: JSON.stringify(values),
@@ -175,6 +214,71 @@ async function savePreinscription(event) {
     }
 }
 
+async function lookupPublicPreinscription() {
+    const ci = qs('#publicLookupCi')?.value.trim();
+
+    if (!ci) {
+        setMessage('#publicLookupOutput', 'Ingresa tu carnet para buscar la preinscripcion.');
+        return;
+    }
+
+    try {
+        const data = await apiRequest(`/api/preinscripciones/consulta?ci=${encodeURIComponent(ci)}`);
+        const preinscription = data.preinscripcion;
+
+        setMessage(
+            '#publicLookupOutput',
+            `${preinscription.folio}: ${preinscription.nombre}. Estado: ${preinscription.estado?.label || 'Registrada'}. ${data.puede_editar ? 'Puedes editar tus datos abajo.' : 'Esta preinscripcion ya no puede editarse.'}`,
+        );
+
+        if (data.puede_editar) {
+            fillPublicPreinscriptionForm(preinscription);
+        }
+    } catch (error) {
+        setMessage('#publicLookupOutput', error.data || error.message);
+    }
+}
+
+function fillPublicPreinscriptionForm(preinscription) {
+    const form = qs('#preinscriptionForm');
+
+    if (!form) {
+        return;
+    }
+
+    publicEditingUsername = preinscription.username;
+
+    const values = {
+        correo: preinscription.correo,
+        ci: preinscription.ci,
+        nombre: preinscription.nombre,
+        telefono: preinscription.telefono,
+        ciudad: preinscription.ciudad,
+        colegio_procedencia: preinscription.colegio_procedencia,
+        direccion: preinscription.direccion,
+        fecha_nacimiento: preinscription.fecha_nacimiento,
+        genero: preinscription.genero,
+        cod_titulo_bachiller: preinscription.cod_titulo_bachiller,
+    };
+
+    Object.entries(values).forEach(([name, value]) => {
+        if (form.elements[name]) {
+            form.elements[name].value = value || '';
+        }
+    });
+
+    const careers = preinscription.carreras || [];
+    if (form.elements.carrera_principal) {
+        form.elements.carrera_principal.value = careers[0]?.codigo || '';
+    }
+    if (form.elements.carrera_secundaria) {
+        form.elements.carrera_secundaria.value = careers[1]?.codigo || '';
+    }
+
+    qs('#preinscriptionForm button[type="submit"] span').textContent = 'Actualizar preinscripcion';
+    qs('#preinscriptionForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function showPublicPaymentGateway(preinscription) {
     const gateway = qs('#publicPaymentGateway');
     const form = qs('#preinscriptionForm');
@@ -184,10 +288,13 @@ async function showPublicPaymentGateway(preinscription) {
     }
 
     publicPayment.username = preinscription.username;
+    resetPublicPaymentElement();
     qs('#publicPaymentFolio').textContent = preinscription.folio || preinscription.username;
 
+    qs('.register-shell')?.classList.add('is-payment-mode');
     form.hidden = true;
     gateway.hidden = false;
+    showPublicPaymentDownload(null);
 
     showPublicPaymentMessage('Preinscripcion registrada. Ahora completa el pago de matricula.', true);
 
@@ -197,21 +304,48 @@ async function showPublicPaymentGateway(preinscription) {
         publicPayment.currency = config.moneda || publicPayment.currency;
 
         qs('#publicPaymentAmount').textContent = `${publicPayment.amount} ${publicPayment.currency}`;
-        qs('#publicPaymentButton span').textContent = `Pagar ${publicPayment.amount} ${publicPayment.currency}`;
+        setPublicPaymentButtonText(`Pagar ${publicPayment.amount} ${publicPayment.currency}`);
 
         if (!config.stripe_key) {
             showPublicPaymentMessage('Falta configurar STRIPE_KEY en .env para mostrar la pasarela de pago.', false);
             return;
         }
 
-        await mountStripeElements(config.stripe_key);
-        qs('#publicPaymentForm')?.addEventListener('submit', payPublicMatricula);
+        const intent = await createPublicPaymentIntent();
+
+        if (!intent.client_secret) {
+            showPublicPaymentMessage(intent.message || 'El pago ya fue registrado para este postulante.', true);
+            if (['pagado', 'registrado'].includes(intent.pago?.estado)) {
+                showPublicPaymentDownload(`/api/preinscripciones/${encodeURIComponent(publicPayment.username)}/formulario`);
+            }
+            return;
+        }
+
+        publicPayment.paymentIntentId = intent.pago?.nro_comprobante || null;
+
+        await mountStripeElements(config.stripe_key, intent.client_secret);
+
+        if (!publicPayment.formBound) {
+            qs('#publicPaymentForm')?.addEventListener('submit', payPublicMatricula);
+            publicPayment.formBound = true;
+        }
     } catch (error) {
         showPublicPaymentMessage(error.data?.message || error.message, false);
     }
 }
 
-async function mountStripeElements(stripeKey) {
+async function createPublicPaymentIntent() {
+    showPublicPaymentMessage('Preparando pasarela segura de Stripe...', true);
+
+    return apiRequest(`/api/postulantes/${encodeURIComponent(publicPayment.username)}/pago-matricula/intento`, {
+        method: 'POST',
+        body: JSON.stringify({
+            observacion: 'Pago de matricula con tarjeta mediante Stripe.',
+        }),
+    });
+}
+
+async function mountStripeElements(stripeKey, clientSecret) {
     if (publicPayment.mounted) {
         return;
     }
@@ -224,40 +358,36 @@ async function mountStripeElements(stripeKey) {
 
     publicPayment.stripe = window.Stripe(stripeKey);
     publicPayment.elements = publicPayment.stripe.elements({
+        clientSecret,
         locale: 'es',
-    });
-
-    const style = {
-        base: {
-            color: '#07111f',
-            fontFamily: 'Inter, system-ui, sans-serif',
-            fontSize: '16px',
-            '::placeholder': {
-                color: '#b6c4d8',
+        appearance: {
+            theme: 'stripe',
+            variables: {
+                colorPrimary: '#063c7a',
+                colorText: '#07111f',
+                colorDanger: '#b42318',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                borderRadius: '8px',
             },
         },
-        invalid: {
-            color: '#b42318',
-        },
-    };
-
-    publicPayment.cardNumber = publicPayment.elements.create('cardNumber', {
-        style,
-        placeholder: '0000 0000 0000 0000',
     });
-    publicPayment.cardNumber.mount('#cardNumberElement');
 
-    publicPayment.elements.create('cardExpiry', {
-        style,
-        placeholder: 'MM / YY',
-    }).mount('#cardExpiryElement');
+    publicPayment.paymentElement = publicPayment.elements.create('payment', {
+        layout: {
+            type: 'tabs',
+            defaultCollapsed: false,
+        },
+        defaultValues: {
+            billingDetails: {
+                name: qs('#cardholderName')?.value.trim() || undefined,
+            },
+        },
+    });
+    publicPayment.paymentElement.mount('#payment-element');
 
-    publicPayment.elements.create('cardCvc', {
-        style,
-        placeholder: '123',
-    }).mount('#cardCvcElement');
-
+    publicPayment.clientSecret = clientSecret;
     publicPayment.mounted = true;
+    showPublicPaymentMessage('Ingresa los datos de tu tarjeta de prueba.', true);
 }
 
 async function payPublicMatricula(event) {
@@ -271,31 +401,26 @@ async function payPublicMatricula(event) {
         return;
     }
 
+    if (!publicPayment.elements) {
+        showPublicPaymentMessage('La pasarela de Stripe aun no esta lista.', false);
+        return;
+    }
+
     setButtonLoading(button, true, 'Procesando pago...');
-    showPublicPaymentMessage('Creando intento de pago seguro...', true);
+    showPublicPaymentMessage('Validando pago con Stripe...', true);
 
     try {
-        const intent = await apiRequest(`/api/postulantes/${encodeURIComponent(publicPayment.username)}/pago-matricula/intento`, {
-            method: 'POST',
-            body: JSON.stringify({
-                observacion: 'Pago de matricula con tarjeta mediante Stripe.',
-            }),
-        });
-
-        if (!intent.client_secret) {
-            showPublicPaymentMessage(intent.message || 'El pago ya fue registrado para este postulante.', true);
-            return;
-        }
-
-        showPublicPaymentMessage('Validando tarjeta con Stripe...', true);
-
-        const result = await publicPayment.stripe.confirmCardPayment(intent.client_secret, {
-            payment_method: {
-                card: publicPayment.cardNumber,
-                billing_details: {
-                    name: holder,
+        const result = await publicPayment.stripe.confirmPayment({
+            elements: publicPayment.elements,
+            confirmParams: {
+                return_url: `${window.location.origin}/registro-postulante`,
+                payment_method_data: {
+                    billing_details: {
+                        name: holder,
+                    },
                 },
             },
+            redirect: 'if_required',
         });
 
         if (result.error) {
@@ -303,14 +428,22 @@ async function payPublicMatricula(event) {
             return;
         }
 
+        const paymentIntentId = result.paymentIntent?.id || publicPayment.paymentIntentId;
+
+        if (!paymentIntentId) {
+            showPublicPaymentMessage('Stripe no devolvio el identificador del pago.', false);
+            return;
+        }
+
         const confirmation = await apiRequest(`/api/postulantes/${encodeURIComponent(publicPayment.username)}/pago-matricula/confirmar`, {
             method: 'POST',
             body: JSON.stringify({
-                payment_intent_id: result.paymentIntent.id,
+                payment_intent_id: paymentIntentId,
             }),
         });
 
         showPublicPaymentMessage(confirmation.message || 'Pago confirmado correctamente.', confirmation.pago?.estado === 'pagado');
+        showPublicPaymentDownload(confirmation.formulario_url);
     } catch (error) {
         showPublicPaymentMessage(error.data?.message || error.message, false);
     } finally {
@@ -351,4 +484,41 @@ function showPublicPaymentMessage(message, success = false) {
     output.hidden = !message;
     output.textContent = message || '';
     output.classList.toggle('is-success', success);
+}
+
+function showPublicPaymentDownload(url) {
+    const link = qs('#publicPaymentDownload');
+
+    if (!link) {
+        return;
+    }
+
+    link.hidden = !url;
+    link.href = url || '#';
+}
+
+function resetPublicPaymentElement() {
+    if (publicPayment.paymentElement) {
+        publicPayment.paymentElement.destroy();
+    }
+
+    publicPayment.stripe = null;
+    publicPayment.elements = null;
+    publicPayment.paymentElement = null;
+    publicPayment.paymentIntentId = null;
+    publicPayment.clientSecret = null;
+    publicPayment.mounted = false;
+
+    const container = qs('#payment-element');
+    if (container) {
+        container.innerHTML = '';
+    }
+}
+
+function setPublicPaymentButtonText(text) {
+    const button = qs('#publicPaymentButton');
+
+    if (button) {
+        button.textContent = text;
+    }
 }

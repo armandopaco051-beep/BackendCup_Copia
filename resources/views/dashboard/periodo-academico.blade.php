@@ -11,7 +11,7 @@
             <div>
                 <span class="section-kicker">Configuracion</span>
                 <h1>Periodo academico</h1>
-                <p>Define el ciclo CUP y las ventanas de preinscripcion, requisitos y pago.</p>
+                <p>Define el ciclo CUP y la ventana unica para preinscripcion, requisitos y pago.</p>
                 <small id="dashboardUser" class="session-chip">Cargando sesion...</small>
             </div>
             <button class="secondary-action" type="button" data-load-periods>Actualizar</button>
@@ -52,18 +52,23 @@
                     </div>
 
                     <div class="period-windows">
-                        <h3>Ventanas del proceso</h3>
+                        <h3>Ventana del proceso</h3>
                         <div class="form-grid">
-                            <label>Inicio preinscripcion<input name="fecha_inicio_preinscripcion" type="date"></label>
-                            <label>Fin preinscripcion<input name="fecha_fin_preinscripcion" type="date"></label>
-                            <label>Inicio requisitos<input name="fecha_inicio_requisitos" type="date"></label>
-                            <label>Fin requisitos<input name="fecha_fin_requisitos" type="date"></label>
-                            <label>Inicio pago<input name="fecha_inicio_pago" type="date"></label>
-                            <label>Fin pago<input name="fecha_fin_pago" type="date"></label>
+                            <label>Inicio preinscripcion
+                                <input name="fecha_inicio_preinscripcion" type="date">
+                            </label>
+                            <label>Fin preinscripcion
+                                <input name="fecha_fin_preinscripcion" type="date">
+                            </label>
                         </div>
+                        <p class="module-note">Estas mismas fechas se aplican tambien para validar requisitos y registrar pagos.</p>
                     </div>
 
-                    <button class="primary-action" type="submit"><span>Guardar periodo</span></button>
+                    <p id="periodOutput" class="module-note"></p>
+                    <div class="distribution-actions">
+                        <button class="primary-action" type="submit"><span>Guardar periodo</span></button>
+                        <button class="secondary-action" type="button" data-clear-period>Limpiar</button>
+                    </div>
                 </form>
             </article>
 
@@ -77,11 +82,11 @@
                     </div>
                     <div>
                         <strong>Requisitos fisicos</strong>
-                        <span>La ventanilla se bloquea cuando vence el plazo documental.</span>
+                        <span>Usa la misma fecha de inicio y fin de preinscripcion.</span>
                     </div>
                     <div>
                         <strong>Pago de matricula</strong>
-                        <span>El pago con tarjeta se habilita dentro del rango definido.</span>
+                        <span>Usa la misma fecha de inicio y fin de preinscripcion.</span>
                     </div>
                 </div>
             </aside>
@@ -102,13 +107,12 @@
                             <th>Semestre</th>
                             <th>Año</th>
                             <th>Estado</th>
-                            <th>Preinscripcion</th>
-                            <th>Pago</th>
+                            <th>Ventana</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="periodTable">
-                        <tr><td colspan="7">Cargando periodos...</td></tr>
+                        <tr><td colspan="6">Cargando periodos...</td></tr>
                     </tbody>
                 </table>
             </div>

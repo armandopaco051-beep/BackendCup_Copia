@@ -137,12 +137,21 @@ class PagoMatriculaController extends Controller
                 : 'Pago aun no confirmado por Stripe: '.$paymentIntent->status,
         ]);
 
+        if ($estado === 'pagado') {
+            Postulante::where('username_postulante', $username)->update([
+                'estado' => 'pagado',
+            ]);
+        }
+
         return response()->json([
             'caso_uso' => 'CU-08 Registrar pago de matricula',
             'message' => $estado === 'pagado'
                 ? 'Pago de matricula confirmado correctamente.'
                 : 'El pago todavia no fue completado.',
             'stripe_status' => $paymentIntent->status,
+            'formulario_url' => $estado === 'pagado'
+                ? url('/api/preinscripciones/'.$username.'/formulario')
+                : null,
             'pago' => $pago,
         ]);
     }
@@ -173,11 +182,23 @@ class PagoMatriculaController extends Controller
 
     private function actualizarPagoStripe(string $paymentIntentId, string $estado, string $observacion): void
     {
-        Pago::where('nro_comprobante', $paymentIntentId)->update([
+        $pago = Pago::where('nro_comprobante', $paymentIntentId)->first();
+
+        if (! $pago) {
+            return;
+        }
+
+        $pago->update([
             'estado' => $estado,
             'fecha_pago' => now()->toDateString(),
             'observacion' => $observacion,
         ]);
+
+        if ($estado === 'pagado') {
+            Postulante::where('username_postulante', $pago->username_postulante)->update([
+                'estado' => 'pagado',
+            ]);
+        }
     }
 
     private function stripe(): StripeClient

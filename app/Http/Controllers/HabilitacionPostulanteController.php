@@ -28,6 +28,7 @@ class HabilitacionPostulanteController extends Controller
     public function index(): JsonResponse
     {
         $candidatos = Postulante::orderBy('nombre')
+            ->where('estado', '!=', 'pendiente_pago')
             ->get()
             ->map(fn (Postulante $postulante): array => $this->formatearCandidato($postulante))
             ->values();

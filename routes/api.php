@@ -1,13 +1,16 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AsistenciaController;
 use App\Http\Controllers\AulaController;
 use App\Http\Controllers\BitacoraController;
 use App\Http\Controllers\CalificacionController;
 use App\Http\Controllers\CarreraController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocenteMateriaController;
 use App\Http\Controllers\DistribucionGrupoController;
 use App\Http\Controllers\HabilitacionPostulanteController;
+use App\Http\Controllers\HorarioGrupoController;
 use App\Http\Controllers\MateriaController;
 use App\Http\Controllers\PagoMatriculaController;
 use App\Http\Controllers\PermisoController;
@@ -47,16 +50,40 @@ Route::apiResource('carreras', CarreraController::class)->parameters([
 Route::apiResource('materias', MateriaController::class)->parameters([
     'materias' => 'materia',
 ]);
+Route::get('/docentes-materias', [DocenteMateriaController::class, 'index']);
+Route::get('/docentes/{username}/materias', [DocenteMateriaController::class, 'show']);
+Route::put('/docentes/{username}/materias', [DocenteMateriaController::class, 'sync']);
+Route::delete('/docentes/{username}/materias/{materia}', [DocenteMateriaController::class, 'destroy']);
+
+// Generar horarios por grupo con rotacion circular de materias.
+Route::middleware(['web', 'auth'])->group(function (): void {
+    Route::get('/horarios-grupos/opciones', [HorarioGrupoController::class, 'opciones']);
+    Route::get('/horarios-grupos', [HorarioGrupoController::class, 'index']);
+    Route::post('/horarios-grupos/generar', [HorarioGrupoController::class, 'generar']);
+    Route::post('/horarios-grupos/confirmar', [HorarioGrupoController::class, 'confirmar']);
+    Route::delete('/horarios-grupos/{horarioGrupo}', [HorarioGrupoController::class, 'destroy']);
+});
 
 // Registrar calificaciones y calcular promedio automaticamente.
-Route::get('/calificaciones/opciones', [CalificacionController::class, 'opciones']);
-Route::apiResource('calificaciones', CalificacionController::class)->parameters([
-    'calificaciones' => 'calificacion',
-]);
+// Requiere sesion para que el docente solo vea y califique sus grupos asignados.
+Route::middleware(['web', 'auth'])->group(function (): void {
+    Route::get('/calificaciones/opciones', [CalificacionController::class, 'opciones']);
+    Route::apiResource('calificaciones', CalificacionController::class)->parameters([
+        'calificaciones' => 'calificacion',
+    ]);
+    Route::get('/asistencias/opciones', [AsistenciaController::class, 'opciones']);
+    Route::get('/asistencias', [AsistenciaController::class, 'index']);
+    Route::post('/asistencias/lote', [AsistenciaController::class, 'storeLote']);
+    Route::delete('/asistencias/{asistencia}', [AsistenciaController::class, 'destroy']);
+});
 
 // CU-06: Registrar preinscripcion del bachiller para iniciar admision.
 Route::get('/preinscripciones', [PreinscripcionController::class, 'index']);
+Route::get('/preinscripciones/consulta', [PreinscripcionController::class, 'consultarPorCi']);
+Route::get('/preinscripciones/{username}/formulario', [PreinscripcionController::class, 'formularioPdf']);
 Route::post('/preinscripciones', [PreinscripcionController::class, 'store']);
+Route::put('/preinscripciones/{username}', [PreinscripcionController::class, 'updatePublic']);
+Route::patch('/preinscripciones/{username}', [PreinscripcionController::class, 'updatePublic']);
 
 Route::get('/usuarios', [UsuarioController::class, 'index']);
 Route::post('/usuarios', [UsuarioController::class, 'store']);

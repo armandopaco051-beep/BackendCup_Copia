@@ -165,6 +165,22 @@ class AulaController extends Controller
 
     private function ocupacionesPorAula(): array
     {
+        if ($this->tableExists('horario_grupo')) {
+            $asignaciones = DB::table('academico.horario_grupo')
+                ->select('id_aula', 'id_grupo')
+                ->whereIn('estado', ['propuesto', 'confirmado'])
+                ->distinct();
+
+            return DB::query()
+                ->fromSub($asignaciones, 'asignaciones')
+                ->join('academico.grupo as grupo', 'grupo.codigo', '=', 'asignaciones.id_grupo')
+                ->select('asignaciones.id_aula', DB::raw('SUM(COALESCE(grupo.cupo_maximo, 70)) as ocupacion'))
+                ->groupBy('asignaciones.id_aula')
+                ->pluck('ocupacion', 'id_aula')
+                ->map(fn ($ocupacion): int => (int) $ocupacion)
+                ->all();
+        }
+
         if (! $this->tableExists('horario')) {
             return [];
         }

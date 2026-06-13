@@ -1,4 +1,4 @@
-import { apiRequest, cleanPayload, escapeHtml, formData, qs, qsa, validateForm } from './api';
+import { apiRequest, cleanPayload, escapeHtml, formData, qs, qsa, setMessage, validateForm } from './api';
 
 let periods = [];
 let config = {};
@@ -10,6 +10,7 @@ export function initPeriodoAcademico() {
 
     qs('[data-load-periods]')?.addEventListener('click', loadPeriods);
     qs('#periodForm')?.addEventListener('submit', savePeriod);
+    qs('[data-clear-period]')?.addEventListener('click', resetPeriodForm);
 
     loadPeriods();
 }
@@ -22,7 +23,7 @@ async function loadPeriods() {
         applySchemaConfig();
         renderPeriods();
     } catch (error) {
-        qs('#periodTable').innerHTML = `<tr><td colspan="7">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
+        qs('#periodTable').innerHTML = `<tr><td colspan="6">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
     }
 }
 
@@ -43,8 +44,8 @@ function applySchemaConfig() {
 
     if (notice) {
         notice.textContent = config.soporta_fechas
-            ? 'El backend acepta fechas y estado del periodo.'
-            : 'Tu tabla actual guarda solo semestre y año. Agrega columnas de fechas para activar las ventanas.';
+            ? 'El backend aplica la ventana de preinscripcion tambien para requisitos y pago.'
+            : 'Tu tabla actual guarda solo semestre y anio. Agrega columnas de fechas para activar las ventanas.';
     }
 }
 
@@ -54,15 +55,20 @@ function renderPeriods() {
 
     table.innerHTML = periods.map((period) => `
         <tr>
-            <td>${escapeHtml(period.id)}</td>
-            <td>${escapeHtml(period.nombre || `Periodo ${period.anio}-${period.semestre}`)}</td>
+            <td>
+                <strong>${escapeHtml(period.nombre || `Periodo CUP ${period.anio}-${period.semestre}`)}</strong>
+                <small>ID ${escapeHtml(period.id)}</small>
+            </td>
             <td>${escapeHtml(period.semestre)}</td>
             <td>${escapeHtml(period.anio)}</td>
-            <td>${escapeHtml(period.estado || 'sin estado')}</td>
+            <td><span class="status-pill ${period.estado === 'activo' ? 'is-admitted' : ''}">${escapeHtml(period.estado || 'sin estado')}</span></td>
             <td>${escapeHtml(formatWindow(period.fecha_inicio_preinscripcion, period.fecha_fin_preinscripcion))}</td>
-            <td class="table-actions"><button type="button" data-edit-period="${period.id}">Editar</button></td>
+            <td class="table-actions">
+                <button type="button" data-edit-period="${period.id}">Editar</button>
+                <button type="button" data-delete-period="${period.id}">Eliminar</button>
+            </td>
         </tr>
-    `).join('') || '<tr><td colspan="7">No hay periodos registrados.</td></tr>';
+    `).join('') || '<tr><td colspan="6">No hay periodos registrados.</td></tr>';
 
     if (count) {
         count.textContent = `${periods.length} periodo(s) registrado(s)`;
@@ -70,6 +76,10 @@ function renderPeriods() {
 
     qsa('[data-edit-period]').forEach((button) => {
         button.addEventListener('click', () => fillPeriod(Number(button.dataset.editPeriod)));
+    });
+
+    qsa('[data-delete-period]').forEach((button) => {
+        button.addEventListener('click', () => deletePeriod(Number(button.dataset.deletePeriod)));
     });
 }
 
@@ -98,15 +108,15 @@ function fillPeriod(id) {
         'estado',
         'fecha_inicio_preinscripcion',
         'fecha_fin_preinscripcion',
-        'fecha_inicio_requisitos',
-        'fecha_fin_requisitos',
-        'fecha_inicio_pago',
-        'fecha_fin_pago',
     ].forEach((field) => {
         if (form.elements[field]) {
             form.elements[field].value = period[field] || '';
         }
     });
+
+    qs('#periodForm button[type="submit"] span').textContent = 'Actualizar periodo';
+    setMessage('#periodOutput', `Editando periodo ${period.nombre || period.id}.`);
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function savePeriod(event) {
@@ -120,19 +130,60 @@ async function savePeriod(event) {
     const payload = cleanPayload(formData(form));
     const id = payload.id;
     delete payload.id;
+    mirrorProcessWindow(payload);
 
     try {
-        await apiRequest(id ? `/api/periodos-academicos/${id}` : '/api/periodos-academicos', {
+        const data = await apiRequest(id ? `/api/periodos-academicos/${id}` : '/api/periodos-academicos', {
             method: id ? 'PUT' : 'POST',
             body: JSON.stringify(payload),
         });
 
-        form.reset();
+        setMessage('#periodOutput', data);
+        resetPeriodForm();
         loadPeriods();
     } catch (error) {
-        const notice = qs('#periodSchemaNotice');
-        if (notice) {
-            notice.textContent = error.data?.message || error.message;
-        }
+        setMessage('#periodOutput', error.data || error.message);
     }
+}
+
+function mirrorProcessWindow(payload) {
+    if (payload.fecha_inicio_preinscripcion) {
+        payload.fecha_inicio_requisitos = payload.fecha_inicio_preinscripcion;
+        payload.fecha_inicio_pago = payload.fecha_inicio_preinscripcion;
+    }
+
+    if (payload.fecha_fin_preinscripcion) {
+        payload.fecha_fin_requisitos = payload.fecha_fin_preinscripcion;
+        payload.fecha_fin_pago = payload.fecha_fin_preinscripcion;
+    }
+}
+
+async function deletePeriod(id) {
+    if (!id || !window.confirm('Eliminar este periodo academico?')) {
+        return;
+    }
+
+    try {
+        const data = await apiRequest(`/api/periodos-academicos/${id}`, {
+            method: 'DELETE',
+        });
+
+        setMessage('#periodOutput', data);
+        resetPeriodForm();
+        loadPeriods();
+    } catch (error) {
+        setMessage('#periodOutput', error.data || error.message);
+    }
+}
+
+function resetPeriodForm() {
+    const form = qs('#periodForm');
+
+    if (!form) {
+        return;
+    }
+
+    form.reset();
+    form.elements.id.value = '';
+    qs('#periodForm button[type="submit"] span').textContent = 'Guardar periodo';
 }

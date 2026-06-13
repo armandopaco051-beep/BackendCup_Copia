@@ -4,6 +4,7 @@ import {
     escapeHtml,
     formData,
     qs,
+    qsa,
     setButtonLoading,
     setMessage,
     validateForm,
@@ -18,9 +19,13 @@ export function initUsuarios() {
 
     qs('[data-load-users]')?.addEventListener('click', loadUsers);
     qs('#userSearch')?.addEventListener('input', (event) => renderUsers(event.currentTarget.value));
-    qs('#createUserForm')?.addEventListener('submit', createUser);
+    qs('#createUserForm')?.addEventListener('submit', saveUser);
+    qs('#createUserForm [name="tipo"]')?.addEventListener('change', syncUserTypeFields);
+    qs('[data-clear-user-form]')?.addEventListener('click', resetUserForm);
     qs('#assignRoleForm')?.addEventListener('submit', assignRole);
     qs('#resetPasswordForm')?.addEventListener('submit', resetPassword);
+
+    syncUserTypeFields();
 
     if (qs('#usersTable')) {
         loadUsers();
@@ -75,7 +80,7 @@ function renderUsers(filter = '') {
                 <td><span class="status-pill">Activo</span></td>
                 <td class="table-actions">
                     <a href="/dashboard/perfil" aria-label="Ver usuario ${escapeHtml(user.username)}">Ver</a>
-                    <a href="#createUserPanel" aria-label="Editar usuario ${escapeHtml(user.username)}">Editar</a>
+                    <button type="button" data-edit-user="${escapeHtml(user.username)}" aria-label="Editar usuario ${escapeHtml(user.username)}">Editar</button>
                 </td>
             </tr>
         `;
@@ -84,9 +89,13 @@ function renderUsers(filter = '') {
     if (count) {
         count.textContent = `${filtered.length} usuario(s) encontrado(s)`;
     }
+
+    qsa('[data-edit-user]').forEach((button) => {
+        button.addEventListener('click', () => fillUserForm(button.dataset.editUser));
+    });
 }
 
-async function createUser(event) {
+async function saveUser(event) {
     event.preventDefault();
 
     const form = event.currentTarget;
@@ -96,6 +105,7 @@ async function createUser(event) {
 
     const values = formData(form);
     const button = form.querySelector('button[type="submit"]');
+    const isEditing = values.form_mode === 'edit';
 
     if (values.tipo === 'postulante') {
         setMessage('#usersOutput', 'Para crear postulantes usa CU-06 Preinscripcion, porque requiere datos academicos completos.');
@@ -105,11 +115,15 @@ async function createUser(event) {
     const profile = values.tipo === 'docente'
         ? cleanPayload({
             nombre: values.nombre,
+            correo: values.correo,
+            telefono: values.telefono,
+            ciudad: values.ciudad,
             especializacion: values.especializacion,
             maestria: values.maestria,
         })
         : cleanPayload({
             nombre: values.nombre,
+            correo: values.correo,
             telefono: values.telefono,
             ciudad: values.ciudad,
         });
@@ -117,23 +131,108 @@ async function createUser(event) {
     setButtonLoading(button, true);
 
     try {
-        const data = await apiRequest('/api/usuarios', {
-            method: 'POST',
+        const data = await apiRequest(isEditing ? `/api/usuarios/${encodeURIComponent(values.username)}` : '/api/usuarios', {
+            method: isEditing ? 'PUT' : 'POST',
             body: JSON.stringify({
-                username: values.username,
-                password: values.password,
+                ...(!isEditing ? {
+                    username: values.username,
+                    password: values.password,
+                } : {}),
                 tipo: values.tipo,
                 perfil: profile,
             }),
         });
 
-        form.reset();
+        resetUserForm();
         setMessage('#usersOutput', data);
         loadUsers();
     } catch (error) {
         setMessage('#usersOutput', error.data || error.message);
     } finally {
         setButtonLoading(button, false);
+    }
+}
+
+function fillUserForm(username) {
+    const form = qs('#createUserForm');
+    const user = users.find((item) => item.username === username);
+
+    if (!form || !user) {
+        return;
+    }
+
+    const profile = user.perfil || {};
+    form.elements.form_mode.value = 'edit';
+    form.elements.username.value = user.username;
+    form.elements.username.readOnly = true;
+    form.elements.tipo.value = user.tipo;
+    form.elements.nombre.value = profile.nombre || '';
+    form.elements.correo.value = profile.correo || user.correo || '';
+    form.elements.telefono.value = profile.telefono || '';
+    form.elements.ciudad.value = profile.ciudad || '';
+    form.elements.especializacion.value = profile.especializacion || '';
+    form.elements.maestria.value = profile.maestria || '';
+
+    const passwordInput = form.elements.password;
+    passwordInput.value = '';
+    passwordInput.required = false;
+
+    syncUserTypeFields();
+    qs('#userFormTitle').textContent = 'Actualizar usuario';
+    setUserSubmitText('Actualizar usuario');
+    setMessage('#usersOutput', `Editando usuario ${user.username}.`);
+    qs('#createUserPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetUserForm() {
+    const form = qs('#createUserForm');
+
+    if (!form) {
+        return;
+    }
+
+    form.reset();
+    form.elements.form_mode.value = 'create';
+    form.elements.username.readOnly = false;
+    form.elements.password.required = true;
+    qs('#userFormTitle').textContent = 'Nuevo usuario';
+    setUserSubmitText('Crear usuario');
+    syncUserTypeFields();
+}
+
+function syncUserTypeFields() {
+    const form = qs('#createUserForm');
+
+    if (!form) {
+        return;
+    }
+
+    const type = form.elements.tipo.value;
+
+    qsa('[data-user-field="docente"]', form).forEach((field) => {
+        setFieldVisibility(field, type === 'docente');
+    });
+
+    qsa('[data-user-field="password"]', form).forEach((field) => {
+        setFieldVisibility(field, form.elements.form_mode.value !== 'edit');
+    });
+}
+
+function setFieldVisibility(field, visible) {
+    field.hidden = !visible;
+    qsa('input, select, textarea', field).forEach((input) => {
+        input.disabled = !visible;
+        if (!visible && input.name !== 'password') {
+            input.value = '';
+        }
+    });
+}
+
+function setUserSubmitText(text) {
+    const button = qs('#createUserForm button[type="submit"]');
+
+    if (button) {
+        button.textContent = text;
     }
 }
 

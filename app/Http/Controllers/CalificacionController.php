@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActaNota;
+use App\Models\DocenteGrupo;
 use App\Models\Grupo;
 use App\Models\Materia;
 use App\Models\Postulante;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -16,8 +18,14 @@ class CalificacionController extends Controller
 {
     public function index(): JsonResponse
     {
+        $query = ActaNota::orderByDesc('id');
+
+        if ($this->usuarioActualEsDocente()) {
+            $query->whereIn('id_grupo', $this->codigosGruposDelDocente());
+        }
+
         return response()->json([
-            'calificaciones' => ActaNota::orderByDesc('id')
+            'calificaciones' => $query
                 ->get()
                 ->map(fn (ActaNota $calificacion): array => $this->formatCalificacion($calificacion))
                 ->values(),
@@ -26,20 +34,16 @@ class CalificacionController extends Controller
 
     public function opciones(): JsonResponse
     {
+        $grupos = $this->gruposDisponiblesParaUsuario();
+        $codigosGrupos = $grupos->pluck('codigo')->all();
+
         return response()->json([
-            'postulantes' => Postulante::orderBy('nombre')
-                ->get(['username_postulante', 'ci', 'nombre'])
-                ->map(fn (Postulante $postulante): array => [
-                    'username' => $postulante->username_postulante,
-                    'ci' => $postulante->ci,
-                    'nombre' => $postulante->nombre,
-                ])
-                ->values(),
-            'grupos' => Grupo::orderBy('codigo')
-                ->get(['codigo', 'descripcion'])
+            'postulantes' => $this->postulantesPorGrupos($codigosGrupos),
+            'grupos' => $grupos
                 ->map(fn (Grupo $grupo): array => [
                     'codigo' => $grupo->codigo,
                     'descripcion' => $grupo->descripcion,
+                    'turno' => $grupo->turno ?? null,
                 ])
                 ->values(),
             'materias' => $this->materiasHabilitadas()
@@ -54,6 +58,7 @@ class CalificacionController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate($this->rules());
+        $this->validarDocentePuedeCalificarGrupo($validated['id_grupo']);
         $this->validarDuplicado($validated);
         $validated['promedio'] = $this->promedio($validated);
 
@@ -86,6 +91,7 @@ class CalificacionController extends Controller
             'descripcion',
         ]), $validated);
 
+        $this->validarDocentePuedeCalificarGrupo($payload['id_grupo']);
         $this->validarDuplicado($payload, $calificacion->id);
         $payload['promedio'] = $this->promedio($payload);
 
@@ -99,6 +105,8 @@ class CalificacionController extends Controller
 
     public function destroy(ActaNota $calificacion): JsonResponse
     {
+        $this->validarDocentePuedeCalificarGrupo($calificacion->id_grupo);
+
         $calificacion->delete();
 
         return response()->json([
@@ -141,6 +149,74 @@ class CalificacionController extends Controller
     private function promedio(array $data): float
     {
         return round(((int) $data['nota1'] + (int) $data['nota2'] + (int) $data['nota3']) / 3, 2);
+    }
+
+    private function usuarioActualEsDocente(): bool
+    {
+        return Auth::check() && Auth::user()->tipo === 'docente';
+    }
+
+    private function codigosGruposDelDocente(): array
+    {
+        if (! Auth::check()) {
+            return [];
+        }
+
+        return DocenteGrupo::where('username_docente', Auth::user()->username)
+            ->pluck('codigo_grupo')
+            ->all();
+    }
+
+    private function gruposDisponiblesParaUsuario()
+    {
+        $query = Grupo::orderBy('codigo');
+
+        if ($this->usuarioActualEsDocente()) {
+            $query->whereIn('codigo', $this->codigosGruposDelDocente());
+        }
+
+        return $query->get(['codigo', 'descripcion', 'turno']);
+    }
+
+    private function postulantesPorGrupos(array $codigosGrupos)
+    {
+        $query = Postulante::orderBy('nombre')
+            ->where('estado', '!=', 'pendiente_pago');
+
+        if ($this->usuarioActualEsDocente()) {
+            $query->whereIn('username_postulante', function ($subquery) use ($codigosGrupos): void {
+                $subquery->select('username_postulante')
+                    ->from('academico.horario')
+                    ->whereIn('id_grupo', $codigosGrupos);
+            });
+        }
+
+        return $query
+            ->get(['username_postulante', 'ci', 'nombre'])
+            ->map(fn (Postulante $postulante): array => [
+                'username' => $postulante->username_postulante,
+                'ci' => $postulante->ci,
+                'nombre' => $postulante->nombre,
+                'grupos' => DB::table('academico.horario')
+                    ->where('username_postulante', $postulante->username_postulante)
+                    ->pluck('id_grupo')
+                    ->values()
+                    ->all(),
+            ])
+            ->values();
+    }
+
+    private function validarDocentePuedeCalificarGrupo(string $codigoGrupo): void
+    {
+        if (! $this->usuarioActualEsDocente()) {
+            return;
+        }
+
+        if (! in_array($codigoGrupo, $this->codigosGruposDelDocente(), true)) {
+            throw ValidationException::withMessages([
+                'id_grupo' => ['No tienes permiso para registrar calificaciones en este grupo.'],
+            ]);
+        }
     }
 
     private function formatCalificacion(ActaNota $calificacion): array

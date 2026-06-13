@@ -102,6 +102,10 @@ Route::get('/dashboard/distribucion-grupos', function () {
     return view('dashboard.distribucion-grupos');
 });
 
+Route::get('/dashboard/horarios-grupos', function () {
+    return view('dashboard.horarios-grupos');
+});
+
 Route::get('/dashboard/aulas', function () {
     return view('dashboard.aulas');
 });
@@ -110,8 +114,16 @@ Route::get('/dashboard/calificaciones', function () {
     return view('dashboard.calificaciones');
 });
 
+Route::get('/dashboard/asistencias', function () {
+    return view('dashboard.asistencias');
+});
+
 Route::get('/dashboard/catalogos-academicos', function () {
     return view('dashboard.catalogos-academicos');
+});
+
+Route::get('/dashboard/docentes-materias', function () {
+    return view('dashboard.docentes-materias');
 });
 
 Route::get('/dashboard/perfil', function () {

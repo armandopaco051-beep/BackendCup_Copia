@@ -7,6 +7,7 @@
             'Docente' => [
                 ['key' => 'docente-dashboard', 'href' => '/dashboard/docente', 'label' => 'Panel docente'],
                 ['key' => 'calificaciones', 'href' => '/dashboard/calificaciones', 'label' => 'Registrar calificaciones'],
+                ['key' => 'asistencias', 'href' => '/dashboard/asistencias', 'label' => 'Registrar asistencia'],
             ],
             'Cuenta' => [
                 ['key' => 'perfil', 'href' => '/dashboard/perfil', 'label' => 'Perfil'],
@@ -42,10 +43,15 @@
                 ['key' => 'requisitos', 'href' => '/dashboard/requisitos', 'label' => 'Requisitos fisicos'],
                 ['key' => 'pagos', 'href' => '/dashboard/pagos', 'label' => 'Pago de matricula'],
                 ['key' => 'habilitacion', 'href' => '/dashboard/habilitacion', 'label' => 'Habilitacion'],
+            ],
+            'Academico' => [
+                ['key' => 'catalogos', 'href' => '/dashboard/catalogos-academicos', 'label' => 'Carreras y materias'],
+                ['key' => 'docentes-materias', 'href' => '/dashboard/docentes-materias', 'label' => 'Asignar materias a docentes'],
                 ['key' => 'distribucion', 'href' => '/dashboard/distribucion-grupos', 'label' => 'Distribucion grupos'],
+                ['key' => 'horarios-grupos', 'href' => '/dashboard/horarios-grupos', 'label' => 'Horarios de grupos'],
                 ['key' => 'aulas', 'href' => '/dashboard/aulas', 'label' => 'Gestion de aulas'],
                 ['key' => 'calificaciones', 'href' => '/dashboard/calificaciones', 'label' => 'Calificaciones'],
-                ['key' => 'catalogos', 'href' => '/dashboard/catalogos-academicos', 'label' => 'Carreras y materias'],
+                ['key' => 'asistencias', 'href' => '/dashboard/asistencias', 'label' => 'Asistencia'],
             ],
             'Cuenta' => [
                 ['key' => 'perfil', 'href' => '/dashboard/perfil', 'label' => 'Perfil'],

@@ -15,6 +15,7 @@ export function initCalificaciones() {
     qs('[data-load-grades]')?.addEventListener('click', loadGrades);
     qs('[data-clear-grade]')?.addEventListener('click', clearForm);
     qs('#gradeSearch')?.addEventListener('input', (event) => renderGrades(event.currentTarget.value));
+    qs('#gradeGroupSelect')?.addEventListener('change', syncApplicantsByGroup);
     qs('#gradeForm')?.addEventListener('submit', saveGrade);
 
     loadOptions();
@@ -44,12 +45,6 @@ function renderOptions() {
     const groups = qs('#gradeGroupSelect');
     const subjects = qs('#gradeSubjectSelect');
 
-    if (applicants) {
-        applicants.innerHTML = options.postulantes.length
-            ? `<option value="">Selecciona postulante</option>${options.postulantes.map((item) => `<option value="${escapeHtml(item.username)}">${escapeHtml(item.nombre)} - ${escapeHtml(item.ci || item.username)}</option>`).join('')}`
-            : '<option value="">No hay postulantes registrados</option>';
-    }
-
     if (groups) {
         groups.innerHTML = options.grupos.length
             ? `<option value="">Selecciona grupo</option>${options.grupos.map((item) => `<option value="${escapeHtml(item.codigo)}">${escapeHtml(item.codigo)} - ${escapeHtml(item.turno || item.descripcion || '')}</option>`).join('')}`
@@ -61,6 +56,26 @@ function renderOptions() {
             ? `<option value="">Selecciona materia</option>${options.materias.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nombre)}</option>`).join('')}`
             : '<option value="">No hay materias registradas</option>';
     }
+
+    syncApplicantsByGroup();
+}
+
+function syncApplicantsByGroup() {
+    const applicants = qs('#gradeApplicantSelect');
+    const groups = qs('#gradeGroupSelect');
+
+    if (!applicants || !groups) {
+        return;
+    }
+
+    const selectedGroup = groups.value;
+    const filteredApplicants = selectedGroup
+        ? options.postulantes.filter((item) => Array.isArray(item.grupos) && item.grupos.includes(selectedGroup))
+        : options.postulantes;
+
+    applicants.innerHTML = filteredApplicants.length
+        ? `<option value="">Selecciona postulante</option>${filteredApplicants.map((item) => `<option value="${escapeHtml(item.username)}">${escapeHtml(item.nombre)} - ${escapeHtml(item.ci || item.username)}</option>`).join('')}`
+        : '<option value="">No hay postulantes en este grupo</option>';
 }
 
 async function loadGrades() {
@@ -132,8 +147,9 @@ function fillForm(id) {
     }
 
     form.elements.id.value = grade.id;
-    form.elements.username_postulante.value = grade.username_postulante;
     form.elements.id_grupo.value = grade.id_grupo;
+    syncApplicantsByGroup();
+    form.elements.username_postulante.value = grade.username_postulante;
     form.elements.id_materia.value = grade.id_materia;
     form.elements.nota1.value = grade.nota1;
     form.elements.nota2.value = grade.nota2;

@@ -41,6 +41,18 @@
                 <p>Completa tus datos. Tu usuario y password temporal se enviaran por correo cuando seas habilitado.</p>
             </div>
 
+            <section class="public-lookup">
+                <div>
+                    <strong>Consultar preinscripcion</strong>
+                    <span>Ingresa tu carnet para ver o corregir una preinscripcion ya pagada.</span>
+                </div>
+                <div id="publicLookupForm" class="public-lookup-form">
+                    <input id="publicLookupCi" type="search" placeholder="Carnet de identidad">
+                    <button class="secondary-action" type="button" data-public-lookup>Buscar</button>
+                </div>
+                <p id="publicLookupOutput" class="form-alert register-output"></p>
+            </section>
+
             <div class="register-grid">
                 <label class="field-group">
                     <span>Correo</span>
@@ -170,24 +182,19 @@
             <form id="publicPaymentForm" class="public-payment-card">
                 <div class="public-payment-card-head">Pago seguro via Stripe</div>
 
-                <label>Titular de la tarjeta
+                <label class="stripe-holder-field">Titular de la tarjeta
                     <input id="cardholderName" name="cardholder_name" required placeholder="Nombre como aparece en la tarjeta">
                 </label>
 
-                <label>Numero de tarjeta
-                    <div id="cardNumberElement" class="stripe-field"></div>
-                </label>
-
-                <div class="public-payment-row">
-                    <label>Vencimiento
-                        <div id="cardExpiryElement" class="stripe-field"></div>
-                    </label>
-                    <label>CVC
-                        <div id="cardCvcElement" class="stripe-field"></div>
-                    </label>
+                <div class="stripe-payment-box">
+                    <div id="payment-element" class="stripe-payment-element"></div>
                 </div>
 
                 <p id="publicPaymentOutput" class="form-alert" hidden></p>
+
+                <a id="publicPaymentDownload" class="secondary-action public-payment-download" href="#" target="_blank" rel="noopener" hidden>
+                    Descargar formulario
+                </a>
 
                 <button id="publicPaymentButton" class="primary-action" type="submit">
                     <span>Pagar 700.00 Bs</span>
