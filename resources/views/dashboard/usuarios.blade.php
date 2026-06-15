@@ -79,8 +79,21 @@
                         <label>Correo<input name="correo" type="email" required placeholder="correo@uagrm.edu.bo"></label>
                         <label>Telefono<input name="telefono" maxlength="10" pattern="[0-9]{7,10}" placeholder="70000000"></label>
                         <label>Ciudad<input name="ciudad" placeholder="Santa Cruz"></label>
+                        <label data-user-field="docente">Titulo profesional<input name="titulo_profesional" placeholder="Lic. en Informatica"></label>
+                        <label data-user-field="docente">Registro profesional<input name="nro_registro_profesional" placeholder="REG-001"></label>
+                        <label data-user-field="docente">Estado profesional
+                            <select name="estado_profesional">
+                                <option value="pendiente_revision">Pendiente revision</option>
+                                <option value="habilitado">Habilitado</option>
+                                <option value="observado">Observado</option>
+                                <option value="rechazado">Rechazado</option>
+                            </select>
+                        </label>
+                        <label data-user-field="docente">Max. grupos por periodo<input name="max_grupos_periodo" type="number" min="1" max="20" value="3" placeholder="3"></label>
+                        <label data-user-field="docente">Max. horas por semana<input name="max_horas_semana" type="number" min="1" max="60" step="0.25" value="30" placeholder="30"></label>
                         <label data-user-field="docente">Especializacion<input name="especializacion" placeholder="Sistemas"></label>
                         <label data-user-field="docente">Maestria<input name="maestria" placeholder="Educacion Superior"></label>
+                        <label data-user-field="docente">Observacion profesional<textarea name="observacion_profesional" rows="3" placeholder="Documentacion pendiente o nota de revision"></textarea></label>
                     </div>
                     <div class="distribution-actions">
                         <button class="primary-action" type="submit"><span>Crear usuario</span></button>

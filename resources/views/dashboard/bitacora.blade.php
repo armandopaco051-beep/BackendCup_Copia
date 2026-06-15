@@ -29,6 +29,12 @@
                 <label>Buscar
                     <input name="buscar" type="search" maxlength="200" placeholder="Usuario, accion, modulo o ruta...">
                 </label>
+                <label>Modulo
+                    <input name="modulo" maxlength="120" placeholder="admisiones">
+                </label>
+                <label>Accion
+                    <input name="accion" maxlength="120" placeholder="aprobar_requisitos">
+                </label>
                 <label>Limite
                     <input name="limite" type="number" min="1" max="200" value="80">
                 </label>
@@ -44,11 +50,12 @@
                             <th>Accion</th>
                             <th>Modulo</th>
                             <th>Ruta</th>
+                            <th>Datos</th>
                             <th>IP</th>
                         </tr>
                     </thead>
                     <tbody id="bitacoraTable">
-                        <tr><td colspan="6">Cargando bitacora...</td></tr>
+                        <tr><td colspan="7">Cargando bitacora...</td></tr>
                     </tbody>
                 </table>
             </div>

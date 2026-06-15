@@ -29,7 +29,7 @@ async function loadTeacherSubjects() {
     } catch (error) {
         setMessage('#teacherSubjectOutput', error.data || error.message);
         if (qs('#teacherSubjectTable')) {
-            qs('#teacherSubjectTable').innerHTML = `<tr><td colspan="4">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
+            qs('#teacherSubjectTable').innerHTML = `<tr><td colspan="5">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
         }
     }
 }
@@ -43,7 +43,7 @@ function renderTeacherOptions() {
 
     const previous = select.value;
     select.innerHTML = teachers.length
-        ? `<option value="">Selecciona docente</option>${teachers.map((teacher) => `<option value="${escapeHtml(teacher.username)}">${escapeHtml(teacher.nombre)} - ${escapeHtml(teacher.username)}</option>`).join('')}`
+        ? `<option value="">Selecciona docente</option>${teachers.map((teacher) => `<option value="${escapeHtml(teacher.username)}">${escapeHtml(teacher.nombre)} - ${escapeHtml(teacher.username)} (${labelState(teacher.estado_profesional)})</option>`).join('')}`
         : '<option value="">No hay docentes registrados</option>';
     select.value = teachers.some((teacher) => teacher.username === previous) ? previous : '';
 }
@@ -81,6 +81,7 @@ function renderTeachers(filter = '') {
         teacher.username,
         teacher.nombre,
         teacher.correo,
+        teacher.estado_profesional,
         ...(teacher.materias || []).map((subject) => subject.nombre),
     ].filter(Boolean).join(' ').toLowerCase().includes(query));
 
@@ -91,12 +92,13 @@ function renderTeachers(filter = '') {
                 <small>${escapeHtml(teacher.username)}</small>
             </td>
             <td>${escapeHtml(teacher.correo || 'Sin correo')}</td>
+            <td><span class="status-pill ${professionalStateClass(teacher.estado_profesional)}">${escapeHtml(labelState(teacher.estado_profesional))}</span></td>
             <td>${renderSubjectTags(teacher.materias)}</td>
             <td class="table-actions">
                 <button type="button" data-select-teacher="${escapeHtml(teacher.username)}">Asignar</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">No hay docentes registrados.</td></tr>';
+    `).join('') || '<tr><td colspan="5">No hay docentes registrados.</td></tr>';
 
     if (count) {
         count.textContent = `${filtered.length} docente(s) encontrado(s)`;
@@ -138,6 +140,24 @@ function renderTeacherDetail(teacher) {
         ? `${teacher.username}${teacher.correo ? ` · ${teacher.correo}` : ''}`
         : 'Las materias asignadas apareceran aqui.';
     qs('#teacherSubjectDetailTags').innerHTML = renderSubjectTags(teacher?.materias || []);
+}
+
+function labelState(state = 'pendiente_revision') {
+    return {
+        pendiente_revision: 'Pendiente revision',
+        habilitado: 'Habilitado',
+        observado: 'Observado',
+        rechazado: 'Rechazado',
+    }[state] || state;
+}
+
+function professionalStateClass(state) {
+    return {
+        habilitado: 'is-admitted',
+        pendiente_revision: 'is-validated',
+        observado: 'is-validated',
+        rechazado: 'is-rejected',
+    }[state] || '';
 }
 
 async function saveTeacherSubjects(event) {

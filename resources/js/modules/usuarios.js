@@ -68,6 +68,9 @@ function renderUsers(filter = '') {
         const profile = user.perfil || {};
         const name = profile.nombre || user.username;
         const email = profile.correo || user.correo || 'Sin correo';
+        const state = user.tipo === 'docente'
+            ? (profile.estado_profesional || 'pendiente_revision')
+            : 'activo';
 
         return `
             <tr>
@@ -77,7 +80,7 @@ function renderUsers(filter = '') {
                 </td>
                 <td>${escapeHtml(email)}</td>
                 <td>${escapeHtml(user.rol?.nombre || 'Sin rol')}</td>
-                <td><span class="status-pill">Activo</span></td>
+                <td><span class="status-pill ${professionalStateClass(state)}">${escapeHtml(labelState(state))}</span></td>
                 <td class="table-actions">
                     <a href="/dashboard/perfil" aria-label="Ver usuario ${escapeHtml(user.username)}">Ver</a>
                     <button type="button" data-edit-user="${escapeHtml(user.username)}" aria-label="Editar usuario ${escapeHtml(user.username)}">Editar</button>
@@ -118,6 +121,12 @@ async function saveUser(event) {
             correo: values.correo,
             telefono: values.telefono,
             ciudad: values.ciudad,
+            titulo_profesional: values.titulo_profesional,
+            nro_registro_profesional: values.nro_registro_profesional,
+            estado_profesional: values.estado_profesional,
+            observacion_profesional: values.observacion_profesional,
+            max_grupos_periodo: values.max_grupos_periodo ? Number(values.max_grupos_periodo) : undefined,
+            max_horas_semana: values.max_horas_semana ? Number(values.max_horas_semana) : undefined,
             especializacion: values.especializacion,
             maestria: values.maestria,
         })
@@ -170,6 +179,12 @@ function fillUserForm(username) {
     form.elements.correo.value = profile.correo || user.correo || '';
     form.elements.telefono.value = profile.telefono || '';
     form.elements.ciudad.value = profile.ciudad || '';
+    form.elements.titulo_profesional.value = profile.titulo_profesional || '';
+    form.elements.nro_registro_profesional.value = profile.nro_registro_profesional || '';
+    form.elements.estado_profesional.value = profile.estado_profesional || 'pendiente_revision';
+    form.elements.observacion_profesional.value = profile.observacion_profesional || '';
+    form.elements.max_grupos_periodo.value = profile.max_grupos_periodo || 3;
+    form.elements.max_horas_semana.value = profile.max_horas_semana || 30;
     form.elements.especializacion.value = profile.especializacion || '';
     form.elements.maestria.value = profile.maestria || '';
 
@@ -213,9 +228,33 @@ function syncUserTypeFields() {
         setFieldVisibility(field, type === 'docente');
     });
 
+    if (form.elements.titulo_profesional) {
+        form.elements.titulo_profesional.required = type === 'docente';
+    }
+
     qsa('[data-user-field="password"]', form).forEach((field) => {
         setFieldVisibility(field, form.elements.form_mode.value !== 'edit');
     });
+}
+
+function labelState(state) {
+    return {
+        activo: 'Activo',
+        pendiente_revision: 'Pendiente revision',
+        habilitado: 'Habilitado',
+        observado: 'Observado',
+        rechazado: 'Rechazado',
+    }[state] || state;
+}
+
+function professionalStateClass(state) {
+    return {
+        activo: 'is-admitted',
+        habilitado: 'is-admitted',
+        pendiente_revision: 'is-validated',
+        observado: 'is-validated',
+        rechazado: 'is-rejected',
+    }[state] || '';
 }
 
 function setFieldVisibility(field, visible) {

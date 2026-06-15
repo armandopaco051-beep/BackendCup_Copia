@@ -84,11 +84,21 @@ export function statusClass(type) {
         inactivo: 'is-rejected',
         aprobado: 'is-admitted',
         reprobado: 'is-rejected',
+        observado: 'is-validated',
+        pendiente_revision: 'is-validated',
         presente: 'is-admitted',
         retraso: 'is-validated',
         falta: 'is-rejected',
         propuesto: 'is-validated',
         confirmado: 'is-admitted',
+        asignado: 'is-admitted',
+        activo: 'is-admitted',
+        activa: 'is-admitted',
+        inactiva: 'is-rejected',
+        lista_espera: 'is-validated',
+        sin_opcion: 'is-rejected',
+        inscrito: 'is-admitted',
+        retirado: 'is-rejected',
     }[type] || '';
 }
 

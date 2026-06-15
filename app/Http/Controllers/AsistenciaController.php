@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asistencia;
-use App\Models\DocenteGrupo;
 use App\Models\Grupo;
 use App\Models\Materia;
 use App\Models\Postulante;
@@ -21,7 +20,13 @@ class AsistenciaController extends Controller
         $query = Asistencia::orderByDesc('fecha')->orderByDesc('id');
 
         if ($this->usuarioActualEsDocente()) {
-            $query->whereIn('id_grupo', $this->codigosGruposDelDocente());
+            $query->whereExists(function ($subquery): void {
+                $subquery->select(DB::raw(1))
+                    ->from('academico.horario_grupo')
+                    ->whereColumn('horario_grupo.id_grupo', 'asistencia.id_grupo')
+                    ->whereColumn('horario_grupo.id_materia', 'asistencia.id_materia')
+                    ->where('horario_grupo.username_docente', Auth::user()->username);
+            });
         }
 
         return response()->json([
@@ -62,7 +67,7 @@ class AsistenciaController extends Controller
             'asistencias.*.observacion' => ['nullable', 'string'],
         ]);
 
-        $this->validarDocentePuedeRegistrarGrupo($validated['id_grupo']);
+        $this->validarDocentePuedeRegistrarHorario($validated['id_grupo'], $validated['id_materia']);
         $this->validarMateriaDelGrupo($validated['id_grupo'], $validated['id_materia']);
 
         $docente = $this->usernameDocenteParaRegistro();
@@ -95,7 +100,7 @@ class AsistenciaController extends Controller
 
     public function destroy(Asistencia $asistencia): JsonResponse
     {
-        $this->validarDocentePuedeRegistrarGrupo($asistencia->id_grupo);
+        $this->validarDocentePuedeRegistrarHorario($asistencia->id_grupo, $asistencia->id_materia);
 
         $asistencia->delete();
 
@@ -115,8 +120,11 @@ class AsistenciaController extends Controller
             return [];
         }
 
-        return DocenteGrupo::where('username_docente', Auth::user()->username)
-            ->pluck('codigo_grupo')
+        return DB::table('academico.horario_grupo')
+            ->where('username_docente', Auth::user()->username)
+            ->pluck('id_grupo')
+            ->unique()
+            ->values()
             ->all();
     }
 
@@ -139,7 +147,23 @@ class AsistenciaController extends Controller
             $materiaGrupos = DB::table('academico.materia_grupo')
                 ->whereIn('codigo_grupo', $codigosGrupos)
                 ->get(['codigo_grupo', 'id_materia']);
-        } elseif ($this->tableExists('horario')) {
+        }
+
+        if ($this->tableExists('horario_grupo')) {
+            $desdeHorarios = DB::table('academico.horario_grupo')
+                ->whereIn('id_grupo', $codigosGrupos)
+                ->when($this->usuarioActualEsDocente(), fn ($query) => $query->where('username_docente', Auth::user()->username))
+                ->selectRaw('id_grupo as codigo_grupo, id_materia')
+                ->distinct()
+                ->get();
+
+            $materiaGrupos = $materiaGrupos
+                ->merge($desdeHorarios)
+                ->unique(fn ($item): string => $item->codigo_grupo.'|'.$item->id_materia)
+                ->values();
+        }
+
+        if ($materiaGrupos->isEmpty() && $this->tableExists('horario')) {
             $materiaGrupos = DB::table('academico.horario')
                 ->whereIn('id_grupo', $codigosGrupos)
                 ->selectRaw('id_grupo as codigo_grupo, id_materia')
@@ -164,6 +188,30 @@ class AsistenciaController extends Controller
 
     private function postulantesPorGrupos(array $codigosGrupos)
     {
+        if ($this->tableExists('postulante_grupo')) {
+            $inscripciones = DB::table('academico.postulante_grupo')
+                ->whereIn('id_grupo', $codigosGrupos)
+                ->where('estado', 'inscrito')
+                ->get(['username_postulante', 'id_grupo']);
+
+            $usernames = $inscripciones->pluck('username_postulante')->unique()->values()->all();
+            $gruposPorPostulante = $inscripciones
+                ->groupBy('username_postulante')
+                ->map(fn ($items) => $items->pluck('id_grupo')->unique()->values()->all());
+
+            return Postulante::whereIn('username_postulante', $usernames)
+                ->where('estado', '!=', 'pendiente_pago')
+                ->orderBy('nombre')
+                ->get(['username_postulante', 'ci', 'nombre'])
+                ->map(fn (Postulante $postulante): array => [
+                    'username' => $postulante->username_postulante,
+                    'ci' => $postulante->ci,
+                    'nombre' => $postulante->nombre,
+                    'grupos' => $gruposPorPostulante[$postulante->username_postulante] ?? [],
+                ])
+                ->values();
+        }
+
         if (! $this->tableExists('horario')) {
             return collect();
         }
@@ -190,37 +238,72 @@ class AsistenciaController extends Controller
             ->values();
     }
 
-    private function validarDocentePuedeRegistrarGrupo(string $codigoGrupo): void
+    private function validarDocentePuedeRegistrarHorario(string $codigoGrupo, string $idMateria): void
     {
         if (! $this->usuarioActualEsDocente()) {
             return;
         }
 
-        if (! in_array($codigoGrupo, $this->codigosGruposDelDocente(), true)) {
+        $exists = DB::table('academico.horario_grupo')
+            ->where('username_docente', Auth::user()->username)
+            ->where('id_grupo', $codigoGrupo)
+            ->where('id_materia', $idMateria)
+            ->exists();
+
+        if (! $exists) {
             throw ValidationException::withMessages([
-                'id_grupo' => ['No tienes permiso para registrar asistencia en este grupo.'],
+                'id_materia' => ['No tienes permiso para registrar asistencia en esa materia y grupo.'],
             ]);
         }
     }
 
     private function validarMateriaDelGrupo(string $codigoGrupo, string $idMateria): void
     {
+        $exists = false;
+
         if ($this->tableExists('materia_grupo')) {
             $exists = DB::table('academico.materia_grupo')
                 ->where('codigo_grupo', $codigoGrupo)
                 ->where('id_materia', $idMateria)
                 ->exists();
+        }
 
-            if (! $exists) {
-                throw ValidationException::withMessages([
-                    'id_materia' => ['La materia seleccionada no pertenece al grupo.'],
-                ]);
-            }
+        if (! $exists && $this->tableExists('horario_grupo')) {
+            $exists = DB::table('academico.horario_grupo')
+                ->where('id_grupo', $codigoGrupo)
+                ->where('id_materia', $idMateria)
+                ->exists();
+        }
+
+        if (! $exists && ! $this->tableExists('materia_grupo') && ! $this->tableExists('horario_grupo')) {
+            return;
+        }
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'id_materia' => ['La materia seleccionada no pertenece al grupo.'],
+            ]);
         }
     }
 
     private function validarPostulanteDelGrupo(string $usernamePostulante, string $codigoGrupo): void
     {
+        if ($this->tableExists('postulante_grupo')) {
+            $exists = DB::table('academico.postulante_grupo')
+                ->where('username_postulante', $usernamePostulante)
+                ->where('id_grupo', $codigoGrupo)
+                ->where('estado', 'inscrito')
+                ->exists();
+
+            if (! $exists) {
+                throw ValidationException::withMessages([
+                    'asistencias' => ["El postulante {$usernamePostulante} no pertenece al grupo {$codigoGrupo}."],
+                ]);
+            }
+
+            return;
+        }
+
         if (! $this->tableExists('horario')) {
             return;
         }

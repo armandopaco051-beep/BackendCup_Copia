@@ -3,31 +3,59 @@
 namespace App\Http\Controllers;
 
 use App\Models\Carrera;
+use App\Models\Grupo;
 use App\Models\Pago;
+use App\Models\PeriodoAcademico;
 use App\Models\Postulante;
 use App\Models\PostulanteCarrera;
 use App\Models\RequisitoPostulante;
-use App\Models\Usuario;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    private const NOTA_MINIMA_APROBACION = 60;
+
     public function index(): JsonResponse
     {
-        $postulantes = Postulante::where('estado', '!=', 'pendiente_pago')->count();
-        $preinscripciones = Postulante::where('estado', '!=', 'pendiente_pago')->count();
-        $matriculasPagadas = Pago::whereIn('estado', ['pagado', 'registrado'])
-            ->distinct('username_postulante')
-            ->count('username_postulante');
-        $admitidos = Postulante::whereIn('estado', ['habilitado', 'admitido'])->count();
+        $promedios = DB::table('academico.acta_nota')
+            ->whereNotNull('promedio')
+            ->select(
+                'username_postulante',
+                DB::raw('AVG(promedio) as promedio_final'),
+            )
+            ->groupBy('username_postulante');
+
+        $aprobados = DB::query()
+            ->fromSub(clone $promedios, 'promedios')
+            ->where('promedio_final', '>=', self::NOTA_MINIMA_APROBACION)
+            ->count();
+
+        $reprobados = DB::query()
+            ->fromSub(clone $promedios, 'promedios')
+            ->where('promedio_final', '<', self::NOTA_MINIMA_APROBACION)
+            ->count();
+
+        $periodo = PeriodoAcademico::orderByDesc('id')->first();
 
         return response()->json([
             'metricas' => [
-                'postulantes' => $postulantes,
-                'preinscripciones' => $preinscripciones,
-                'matriculas_pagadas' => $matriculasPagadas,
-                'admitidos' => $admitidos,
+                'inscritos' => Postulante::where('estado', '!=', 'pendiente_pago')->count(),
+                'aprobados' => $aprobados,
+                'reprobados' => $reprobados,
+                'grupos_habilitados' => Grupo::where('estado', 'activo')->count(),
             ],
+            'criterios' => [
+                'nota_minima_aprobacion' => self::NOTA_MINIMA_APROBACION,
+                'inscritos' => 'Preinscripciones confirmadas y persistidas en el sistema.',
+                'resultados' => 'Promedio general por estudiante de todas sus materias registradas.',
+                'grupos' => 'Grupos con estado activo.',
+            ],
+            'periodo' => $periodo ? [
+                'id' => $periodo->id,
+                'nombre' => $periodo->nombre
+                    ?: 'Periodo '.($periodo->semestre ?? '').'-'.($periodo->{'año'} ?? $periodo->anio ?? ''),
+            ] : null,
             'preinscripciones_recientes' => $this->preinscripcionesRecientes(),
         ]);
     }

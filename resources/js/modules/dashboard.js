@@ -1,7 +1,7 @@
 import { apiRequest, escapeHtml, numberFormat, qs, statusClass } from './api';
 
 export function initDashboard() {
-    if (!qs('#metricPostulantes')) {
+    if (!qs('#metricInscritos')) {
         return;
     }
 
@@ -13,10 +13,16 @@ async function loadDashboard() {
         const data = await apiRequest('/api/dashboard');
         const metrics = data.metricas || {};
 
-        qs('#metricPostulantes').textContent = numberFormat(metrics.postulantes);
-        qs('#metricPreinscripciones').textContent = numberFormat(metrics.preinscripciones);
-        qs('#metricMatriculas').textContent = numberFormat(metrics.matriculas_pagadas);
-        qs('#metricAdmitidos').textContent = numberFormat(metrics.admitidos);
+        qs('#metricInscritos').textContent = numberFormat(metrics.inscritos);
+        qs('#metricAprobados').textContent = numberFormat(metrics.aprobados);
+        qs('#metricReprobados').textContent = numberFormat(metrics.reprobados);
+        qs('#metricGruposHabilitados').textContent = numberFormat(metrics.grupos_habilitados);
+
+        const period = qs('#dashboardPeriod');
+        if (period && data.periodo?.nombre) {
+            const icon = period.querySelector('svg')?.outerHTML || '';
+            period.innerHTML = `${icon}${escapeHtml(data.periodo.nombre)}`;
+        }
 
         renderRecent(data.preinscripciones_recientes || []);
     } catch {

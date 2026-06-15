@@ -53,4 +53,27 @@ class Usuario extends Authenticatable
     {
         return $this->hasOne(Administrativo::class, 'username_administrativo', 'username');
     }
+
+    public function esAdministrador(): bool
+    {
+        $this->loadMissing('rol');
+
+        return $this->rol?->nombre === 'administrador';
+    }
+
+    public function tienePermiso(string|array $permisos): bool
+    {
+        $permisos = is_array($permisos) ? $permisos : [$permisos];
+
+        if ($this->esAdministrador()) {
+            return true;
+        }
+
+        $this->loadMissing('rol.permisos');
+
+        return $this->rol?->permisos
+            ->pluck('nombre')
+            ->intersect($permisos)
+            ->isNotEmpty() ?? false;
+    }
 }

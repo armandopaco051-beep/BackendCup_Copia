@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Aula;
+use App\Models\Docente;
 use App\Models\DocenteMateria;
 use App\Models\Grupo;
 use App\Models\HorarioGrupo;
@@ -60,6 +61,7 @@ class HorarioGrupoController extends Controller
     public function opciones(): JsonResponse
     {
         $periodo = $this->periodo(null);
+        $dias = $this->dias();
 
         return response()->json([
             'periodo' => $this->formatPeriodo($periodo),
@@ -70,7 +72,6 @@ class HorarioGrupoController extends Controller
                     'bloques' => $this->bloquesTurno($key),
                 ])
                 ->values(),
-            'dias' => self::DIAS,
             'grupos' => $this->grupos($periodo)->map(fn (Grupo $grupo): array => $this->formatGrupo($grupo))->values(),
             'materias' => $this->materias()->map(fn (Materia $materia): array => [
                 'id' => $materia->id,
@@ -78,7 +79,33 @@ class HorarioGrupoController extends Controller
                 'estado' => $materia->estado ?? 'habilitada',
             ])->values(),
             'aulas' => $this->aulas()->map(fn (Aula $aula): array => $this->formatAula($aula))->values(),
+            'docentes' => $this->docentes(),
+            'dias' => collect($dias)
+                ->map(fn (int $id, string $nombre): array => [
+                    'id' => $id,
+                    'nombre' => $nombre,
+                ])
+                ->values(),
         ]);
+    }
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $this->validatedHorario($request);
+        $this->validarDocenteMateria($validated['username_docente'], $validated['id_materia']);
+        $this->validarCruces($validated);
+        $this->validarCargaHorariaDocente($validated);
+
+        $horario = HorarioGrupo::create([
+            ...$validated,
+            'turno' => $this->turnoNombre($validated['turno'] ?? null),
+            'created_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Bloque de horario creado correctamente.',
+            'horario' => $this->formatHorario($horario),
+        ], 201);
     }
 
     public function generar(Request $request): JsonResponse
@@ -128,6 +155,7 @@ class HorarioGrupoController extends Controller
             $dias = $this->dias();
             $aulasPorGrupo = $this->asignarAulas($grupos, $aulas);
             $ocupacionDocente = [];
+            $cargaDocente = $this->cargaDocentesActual($periodo);
             $ocupacionAula = [];
             $horarios = collect();
 
@@ -144,11 +172,20 @@ class HorarioGrupoController extends Controller
                             $materia = $materias[($indiceGrupo + $indiceDia + $indiceBloque) % $materias->count()];
                             $aula = $aulasPorGrupo[$grupo->codigo];
                             $llaveTiempo = "{$diaId}|{$bloque['inicio']}|{$bloque['fin']}";
-                            $docente = $this->docenteDisponible($materia->id, $docentesPorMateria, $ocupacionDocente, $llaveTiempo);
+                            $docente = $this->docenteDisponible(
+                                $materia->id,
+                                $docentesPorMateria,
+                                $ocupacionDocente,
+                                $llaveTiempo,
+                                $grupo->codigo,
+                                $bloque['inicio'],
+                                $bloque['fin'],
+                                $cargaDocente,
+                            );
 
                             if (! $docente) {
                                 throw ValidationException::withMessages([
-                                    'docentes' => "No hay docente libre para {$materia->nombre} en {$diaNombre} {$bloque['inicio']} - {$bloque['fin']}.",
+                                    'docentes' => "No hay docente libre con carga disponible para {$materia->nombre} en {$diaNombre} {$bloque['inicio']} - {$bloque['fin']}.",
                                 ]);
                             }
 
@@ -160,14 +197,8 @@ class HorarioGrupoController extends Controller
                             }
 
                             $ocupacionDocente["{$docente}|{$llaveTiempo}"] = true;
+                            $this->registrarCargaDocente($cargaDocente, $docente, $grupo->codigo, $bloque['inicio'], $bloque['fin']);
                             $ocupacionAula[$llaveAula] = true;
-
-                            DB::table('academico.docente_grupo')->updateOrInsert([
-                                'username_docente' => $docente,
-                                'codigo_grupo' => $grupo->codigo,
-                            ], [
-                                'created_at' => now(),
-                            ]);
 
                             $horarios->push(HorarioGrupo::create([
                                 'id_grupo' => $grupo->codigo,
@@ -224,6 +255,24 @@ class HorarioGrupoController extends Controller
         ]);
     }
 
+    public function update(Request $request, HorarioGrupo $horarioGrupo): JsonResponse
+    {
+        $validated = $this->validatedHorario($request);
+        $this->validarDocenteMateria($validated['username_docente'], $validated['id_materia']);
+        $this->validarCruces($validated, $horarioGrupo->id);
+        $this->validarCargaHorariaDocente($validated, $horarioGrupo->id);
+
+        $horarioGrupo->update([
+            ...$validated,
+            'turno' => $this->turnoNombre($validated['turno'] ?? null),
+        ]);
+
+        return response()->json([
+            'message' => 'Bloque de horario actualizado correctamente.',
+            'horario' => $this->formatHorario($horarioGrupo->fresh()),
+        ]);
+    }
+
     public function destroy(HorarioGrupo $horarioGrupo): JsonResponse
     {
         if ($horarioGrupo->estado === 'confirmado') {
@@ -253,6 +302,127 @@ class HorarioGrupoController extends Controller
         }
 
         return $query->get();
+    }
+
+    private function validatedHorario(Request $request): array
+    {
+        $validated = $request->validate([
+            'id_grupo' => ['required', 'string', 'max:100', Rule::exists('pgsql.academico.grupo', 'codigo')],
+            'id_materia' => ['required', 'string', 'max:100', Rule::exists('pgsql.academico.materia', 'id')],
+            'id_aula' => ['required', 'integer', Rule::exists('pgsql.academico.aula', 'nro_aula')],
+            'username_docente' => ['required', 'string', 'max:500', Rule::exists('pgsql.academico.docente', 'username_docente')],
+            'id_dia' => ['required', 'integer', Rule::exists('pgsql.academico.dia', 'id')],
+            'hora_inicio' => ['required', 'date_format:H:i'],
+            'hora_fin' => ['required', 'date_format:H:i'],
+            'turno' => ['required', 'string', Rule::in(['mañana', 'manana', 'maÃ±ana', 'tarde', 'noche'])],
+            'id_periodo_academico' => ['nullable', 'integer', Rule::exists('pgsql.academico.periodo_academico', 'id')],
+            'estado' => ['required', Rule::in(['propuesto', 'confirmado'])],
+        ]);
+
+        if (strtotime($validated['hora_fin']) <= strtotime($validated['hora_inicio'])) {
+            throw ValidationException::withMessages([
+                'hora_fin' => ['La hora final debe ser mayor a la hora inicial.'],
+            ]);
+        }
+
+        $validated['hora_inicio'] = $validated['hora_inicio'].':00';
+        $validated['hora_fin'] = $validated['hora_fin'].':00';
+        $validated['id_periodo_academico'] = $validated['id_periodo_academico'] ?? $this->periodo(null)?->id;
+
+        return $validated;
+    }
+
+    private function validarDocenteMateria(string $usernameDocente, string $idMateria): void
+    {
+        $this->validarDocenteHabilitado($usernameDocente);
+
+        $exists = DocenteMateria::where('username_docente', $usernameDocente)
+            ->where('id_materia', $idMateria)
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'username_docente' => ['El docente seleccionado no tiene asignada esa materia.'],
+            ]);
+        }
+    }
+
+    private function validarDocenteHabilitado(string $usernameDocente): void
+    {
+        $docente = Docente::where('username_docente', $usernameDocente)->firstOrFail();
+
+        if (! $docente->estaHabilitadoProfesionalmente()) {
+            throw ValidationException::withMessages([
+                'username_docente' => ['El docente no esta habilitado profesionalmente para ser asignado a horarios.'],
+            ]);
+        }
+    }
+
+    private function validarCruces(array $data, ?int $exceptId = null): void
+    {
+        $base = HorarioGrupo::where('id_dia', $data['id_dia'])
+            ->where('hora_inicio', '<', $data['hora_fin'])
+            ->where('hora_fin', '>', $data['hora_inicio'])
+            ->whereIn('estado', ['propuesto', 'confirmado']);
+
+        if ($exceptId) {
+            $base->where('id', '<>', $exceptId);
+        }
+
+        if ((clone $base)->where('id_grupo', $data['id_grupo'])->exists()) {
+            throw ValidationException::withMessages([
+                'id_grupo' => ['El grupo ya tiene una materia asignada en ese horario.'],
+            ]);
+        }
+
+        if ((clone $base)->where('id_aula', $data['id_aula'])->exists()) {
+            throw ValidationException::withMessages([
+                'id_aula' => ['El aula ya esta ocupada en ese horario.'],
+            ]);
+        }
+
+        if ((clone $base)->where('username_docente', $data['username_docente'])->exists()) {
+            throw ValidationException::withMessages([
+                'username_docente' => ['El docente ya tiene otro horario asignado en ese bloque.'],
+            ]);
+        }
+    }
+
+    private function validarCargaHorariaDocente(array $data, ?int $exceptId = null): void
+    {
+        $docente = Docente::where('username_docente', $data['username_docente'])->firstOrFail();
+        $maxGrupos = (int) ($docente->max_grupos_periodo ?? 3);
+        $maxHoras = (float) ($docente->max_horas_semana ?? 30);
+
+        $query = HorarioGrupo::where('username_docente', $data['username_docente'])
+            ->whereIn('estado', ['propuesto', 'confirmado']);
+
+        if ($exceptId) {
+            $query->where('id', '<>', $exceptId);
+        }
+
+        $query = $data['id_periodo_academico']
+            ? $query->where('id_periodo_academico', $data['id_periodo_academico'])
+            : $query->whereNull('id_periodo_academico');
+
+        $horarios = $query->get(['id_grupo', 'hora_inicio', 'hora_fin']);
+        $grupos = $horarios->pluck('id_grupo')->push($data['id_grupo'])->unique()->values();
+
+        if ($grupos->count() > $maxGrupos) {
+            throw ValidationException::withMessages([
+                'username_docente' => ["El docente supera la cantidad maxima de {$maxGrupos} grupo(s) permitida para este periodo."],
+            ]);
+        }
+
+        $minutosActuales = $horarios->sum(fn (HorarioGrupo $horario): int => $this->minutosEntre($horario->hora_inicio, $horario->hora_fin));
+        $minutosTotales = $minutosActuales + $this->minutosEntre($data['hora_inicio'], $data['hora_fin']);
+        $horasTotales = round($minutosTotales / 60, 2);
+
+        if ($horasTotales > $maxHoras) {
+            throw ValidationException::withMessages([
+                'username_docente' => ["El docente supera la carga maxima de {$maxHoras} hora(s) semanales. Carga calculada: {$horasTotales} hora(s)."],
+            ]);
+        }
     }
 
     private function materias(): Collection
@@ -316,6 +486,7 @@ class HorarioGrupoController extends Controller
     {
         $materiasIds = $materias->pluck('id')->all();
         $asignaciones = DocenteMateria::whereIn('id_materia', $materiasIds)
+            ->whereIn('username_docente', $this->docentesHabilitados()->pluck('username_docente')->all())
             ->orderBy('username_docente')
             ->get()
             ->groupBy('id_materia');
@@ -333,15 +504,105 @@ class HorarioGrupoController extends Controller
             ->all();
     }
 
-    private function docenteDisponible(string $materiaId, array $docentesPorMateria, array $ocupacionDocente, string $llaveTiempo): ?string
+    private function docentes(): Collection
+    {
+        $materiasPorDocente = DocenteMateria::orderBy('username_docente')
+            ->get()
+            ->groupBy('username_docente')
+            ->map(fn (Collection $items): array => $items->pluck('id_materia')->values()->all());
+
+        return DB::table('academico.docente')
+            ->orderBy('nombre')
+            ->get()
+            ->map(fn ($docente): array => [
+                'username' => $docente->username_docente,
+                'nombre' => $docente->nombre,
+                'correo' => $docente->correo ?? null,
+                'titulo_profesional' => $docente->titulo_profesional ?? null,
+                'estado_profesional' => $docente->estado_profesional ?? 'pendiente_revision',
+                'max_grupos_periodo' => $docente->max_grupos_periodo ?? 3,
+                'max_horas_semana' => $docente->max_horas_semana ?? 30,
+                'materias_ids' => $materiasPorDocente[$docente->username_docente] ?? [],
+            ]);
+    }
+
+    private function docentesHabilitados(): Collection
+    {
+        return Docente::where('estado_profesional', 'habilitado')
+            ->whereNotNull('titulo_profesional')
+            ->where('titulo_profesional', '<>', '')
+            ->get(['username_docente']);
+    }
+
+    private function docenteDisponible(
+        string $materiaId,
+        array $docentesPorMateria,
+        array $ocupacionDocente,
+        string $llaveTiempo,
+        string $codigoGrupo,
+        string $horaInicio,
+        string $horaFin,
+        array $cargaDocente,
+    ): ?string
     {
         foreach ($docentesPorMateria[$materiaId] ?? [] as $docente) {
-            if (! isset($ocupacionDocente["{$docente}|{$llaveTiempo}"])) {
+            if (! isset($ocupacionDocente["{$docente}|{$llaveTiempo}"])
+                && $this->docenteTieneCargaDisponible($docente, $codigoGrupo, $horaInicio, $horaFin, $cargaDocente)) {
                 return $docente;
             }
         }
 
         return null;
+    }
+
+    private function cargaDocentesActual(?PeriodoAcademico $periodo): array
+    {
+        $query = HorarioGrupo::whereIn('estado', ['propuesto', 'confirmado']);
+        $query = $periodo
+            ? $query->where('id_periodo_academico', $periodo->id)
+            : $query->whereNull('id_periodo_academico');
+
+        $carga = [];
+
+        foreach ($query->get(['username_docente', 'id_grupo', 'hora_inicio', 'hora_fin']) as $horario) {
+            $this->registrarCargaDocente(
+                $carga,
+                $horario->username_docente,
+                $horario->id_grupo,
+                $horario->hora_inicio,
+                $horario->hora_fin,
+            );
+        }
+
+        return $carga;
+    }
+
+    private function docenteTieneCargaDisponible(string $usernameDocente, string $codigoGrupo, string $horaInicio, string $horaFin, array $cargaDocente): bool
+    {
+        $docente = Docente::where('username_docente', $usernameDocente)->first();
+        $maxGrupos = (int) ($docente?->max_grupos_periodo ?? 3);
+        $maxMinutos = (float) ($docente?->max_horas_semana ?? 30) * 60;
+        $carga = $cargaDocente[$usernameDocente] ?? ['grupos' => [], 'minutos' => 0];
+        $grupos = collect($carga['grupos'])->push($codigoGrupo)->unique();
+
+        return $grupos->count() <= $maxGrupos
+            && ((int) $carga['minutos'] + $this->minutosEntre($horaInicio, $horaFin)) <= $maxMinutos;
+    }
+
+    private function registrarCargaDocente(array &$cargaDocente, string $usernameDocente, string $codigoGrupo, string $horaInicio, string $horaFin): void
+    {
+        $cargaDocente[$usernameDocente] ??= ['grupos' => [], 'minutos' => 0];
+        $cargaDocente[$usernameDocente]['grupos'] = collect($cargaDocente[$usernameDocente]['grupos'])
+            ->push($codigoGrupo)
+            ->unique()
+            ->values()
+            ->all();
+        $cargaDocente[$usernameDocente]['minutos'] += $this->minutosEntre($horaInicio, $horaFin);
+    }
+
+    private function minutosEntre(string $inicio, string $fin): int
+    {
+        return max((int) ((strtotime($fin) - strtotime($inicio)) / 60), 0);
     }
 
     private function dias(): array

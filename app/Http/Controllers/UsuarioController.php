@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Administrativo;
+use App\Models\Bitacora;
 use App\Models\Docente;
 use App\Models\Postulante;
 use App\Models\Rol;
@@ -186,6 +187,12 @@ class UsuarioController extends Controller
                 'perfil.correo' => [$required ? 'required' : 'sometimes', 'email', 'max:100'],
                 'perfil.telefono' => [$required ? 'required' : 'sometimes', 'string', 'max:10'],
                 'perfil.ciudad' => [$required ? 'required' : 'sometimes', 'string'],
+                'perfil.titulo_profesional' => [$required ? 'required' : 'sometimes', 'string', 'max:500'],
+                'perfil.nro_registro_profesional' => ['nullable', 'string', 'max:100'],
+                'perfil.estado_profesional' => ['nullable', Rule::in(['pendiente_revision', 'habilitado', 'observado', 'rechazado'])],
+                'perfil.observacion_profesional' => ['nullable', 'string'],
+                'perfil.max_grupos_periodo' => ['nullable', 'integer', 'min:1', 'max:20'],
+                'perfil.max_horas_semana' => ['nullable', 'numeric', 'min:1', 'max:60'],
                 'perfil.especializacion' => ['nullable', 'string'],
                 'perfil.maestria' => ['nullable', 'string'],
             ])['perfil'],
@@ -225,6 +232,11 @@ class UsuarioController extends Controller
 
     private function crearPerfil(Usuario $usuario, array $perfil): void
     {
+        if ($usuario->tipo === 'docente') {
+            $perfil = $this->normalizarPerfilDocente($perfil);
+            $this->validarPerfilProfesionalDocente($perfil);
+        }
+
         match ($usuario->tipo) {
             'administrativo' => Administrativo::create([
                 'username_administrativo' => $usuario->username,
@@ -243,6 +255,28 @@ class UsuarioController extends Controller
 
     private function actualizarPerfil(Usuario $usuario, array $perfil): void
     {
+        if ($usuario->tipo === 'docente') {
+            $perfilAnterior = $usuario->docente;
+            $perfil = $this->normalizarPerfilDocente([
+                ...($perfilAnterior?->only([
+                    'nombre',
+                    'correo',
+                    'telefono',
+                    'ciudad',
+                    'titulo_profesional',
+                    'nro_registro_profesional',
+                    'estado_profesional',
+                    'observacion_profesional',
+                    'max_grupos_periodo',
+                    'max_horas_semana',
+                    'especializacion',
+                    'maestria',
+                ]) ?? []),
+                ...$perfil,
+            ]);
+            $this->validarPerfilProfesionalDocente($perfil);
+        }
+
         match ($usuario->tipo) {
             'administrativo' => $usuario->administrativo()->updateOrCreate(
                 ['username_administrativo' => $usuario->username],
@@ -257,6 +291,10 @@ class UsuarioController extends Controller
                 $perfil,
             ),
         };
+
+        if ($usuario->tipo === 'docente') {
+            $this->registrarCambioEstadoProfesional($usuario, $perfilAnterior ?? null, $perfil);
+        }
     }
 
     private function eliminarPerfil(Usuario $usuario, string $tipo): void
@@ -288,5 +326,45 @@ class UsuarioController extends Controller
                 ? $usuario->rol->permisos->pluck('nombre')->values()
                 : [],
         ];
+    }
+
+    private function normalizarPerfilDocente(array $perfil): array
+    {
+        $perfil['estado_profesional'] = $perfil['estado_profesional'] ?? 'pendiente_revision';
+        $perfil['max_grupos_periodo'] = (int) ($perfil['max_grupos_periodo'] ?? 3);
+        $perfil['max_horas_semana'] = (float) ($perfil['max_horas_semana'] ?? 30);
+
+        return $perfil;
+    }
+
+    private function validarPerfilProfesionalDocente(array $perfil): void
+    {
+        if (($perfil['estado_profesional'] ?? null) === 'habilitado' && blank($perfil['titulo_profesional'] ?? null)) {
+            throw ValidationException::withMessages([
+                'perfil.titulo_profesional' => ['El titulo profesional es obligatorio para habilitar al docente.'],
+            ]);
+        }
+    }
+
+    private function registrarCambioEstadoProfesional(Usuario $usuario, ?Docente $perfilAnterior, array $perfil): void
+    {
+        $estadoAnterior = $perfilAnterior?->estado_profesional;
+        $estadoNuevo = $perfil['estado_profesional'] ?? null;
+
+        if (! $estadoNuevo || $estadoNuevo === $estadoAnterior) {
+            return;
+        }
+
+        Bitacora::registrar(
+            'validar_perfil_profesional_docente',
+            'academico',
+            "Cambio de estado profesional del docente {$usuario->username}: {$estadoAnterior} -> {$estadoNuevo}.",
+            [
+                'username_docente' => $usuario->username,
+                'estado_anterior' => $estadoAnterior,
+                'estado_nuevo' => $estadoNuevo,
+                'titulo_profesional' => $perfil['titulo_profesional'] ?? null,
+            ],
+        );
     }
 }

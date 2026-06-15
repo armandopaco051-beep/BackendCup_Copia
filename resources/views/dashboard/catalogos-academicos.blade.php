@@ -35,6 +35,7 @@
                     <div class="form-grid">
                         <label>Codigo<input name="codigo" required maxlength="50" pattern="[A-Za-z0-9_-]{2,50}" placeholder="SIS"></label>
                         <label>Nombre<input name="nombre" required maxlength="500" placeholder="Ingenieria de Sistemas"></label>
+                        <label>Cupo maximo<input name="cupo_maximo" type="number" min="0" max="10000" required placeholder="250"></label>
                         <label>Estado
                             <select name="estado" required>
                                 <option value="habilitada">Habilitada</option>
@@ -64,12 +65,13 @@
                             <tr>
                                 <th>Codigo</th>
                                 <th>Nombre</th>
+                                <th>Cupo</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="careerCatalogTable">
-                            <tr><td colspan="4">Cargando carreras...</td></tr>
+                            <tr><td colspan="5">Cargando carreras...</td></tr>
                         </tbody>
                     </table>
                 </div>

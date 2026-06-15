@@ -15,7 +15,10 @@ export function initCalificaciones() {
     qs('[data-load-grades]')?.addEventListener('click', loadGrades);
     qs('[data-clear-grade]')?.addEventListener('click', clearForm);
     qs('#gradeSearch')?.addEventListener('input', (event) => renderGrades(event.currentTarget.value));
-    qs('#gradeGroupSelect')?.addEventListener('change', syncApplicantsByGroup);
+    qs('#gradeGroupSelect')?.addEventListener('change', () => {
+        syncApplicantsByGroup();
+        renderSubjectsByGroup();
+    });
     qs('#gradeForm')?.addEventListener('submit', saveGrade);
 
     loadOptions();
@@ -51,13 +54,25 @@ function renderOptions() {
             : '<option value="">No hay grupos registrados</option>';
     }
 
-    if (subjects) {
-        subjects.innerHTML = options.materias.length
-            ? `<option value="">Selecciona materia</option>${options.materias.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nombre)}</option>`).join('')}`
-            : '<option value="">No hay materias registradas</option>';
+    renderSubjectsByGroup();
+    syncApplicantsByGroup();
+}
+
+function renderSubjectsByGroup() {
+    const subjects = qs('#gradeSubjectSelect');
+    const selectedGroup = qs('#gradeGroupSelect')?.value || '';
+
+    if (!subjects) {
+        return;
     }
 
-    syncApplicantsByGroup();
+    const filteredSubjects = selectedGroup
+        ? options.materias.filter((item) => !item.grupo || item.grupo === selectedGroup)
+        : options.materias;
+
+    subjects.innerHTML = filteredSubjects.length
+        ? `<option value="">Selecciona materia</option>${filteredSubjects.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.nombre)}</option>`).join('')}`
+        : '<option value="">No hay materias para este grupo</option>';
 }
 
 function syncApplicantsByGroup() {
@@ -149,6 +164,7 @@ function fillForm(id) {
     form.elements.id.value = grade.id;
     form.elements.id_grupo.value = grade.id_grupo;
     syncApplicantsByGroup();
+    renderSubjectsByGroup();
     form.elements.username_postulante.value = grade.username_postulante;
     form.elements.id_materia.value = grade.id_materia;
     form.elements.nota1.value = grade.nota1;

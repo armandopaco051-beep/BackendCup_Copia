@@ -33,7 +33,7 @@ async function loadBitacora() {
             ? `Mostrando ${data.resumen.total_mostrado} movimiento(s).`
             : 'Bitacora cargada correctamente.');
     } catch (error) {
-        qs('#bitacoraTable').innerHTML = `<tr><td colspan="6">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
+        qs('#bitacoraTable').innerHTML = `<tr><td colspan="7">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
         setMessage('#bitacoraOutput', error.data || error.message);
     }
 }
@@ -58,11 +58,32 @@ function renderBitacora() {
             </td>
             <td>${escapeHtml(record.modulo || '-')}</td>
             <td>${escapeHtml(record.ruta || '-')}</td>
+            <td><small>${escapeHtml(formatData(record.datos))}</small></td>
             <td>${escapeHtml(record.ip || '-')}</td>
         </tr>
-    `).join('') || '<tr><td colspan="6">No hay movimientos registrados.</td></tr>';
+    `).join('') || '<tr><td colspan="7">No hay movimientos registrados.</td></tr>';
 
     if (count) {
         count.textContent = `${records.length} movimiento(s) encontrado(s)`;
     }
+}
+
+function formatData(data) {
+    if (!data || typeof data !== 'object') {
+        return '-';
+    }
+
+    const keys = [
+        'caso_uso',
+        'username_postulante',
+        'nombre_postulante',
+        'estado',
+        'observacion',
+        'validado_por',
+    ];
+
+    return keys
+        .filter((key) => data[key] !== undefined && data[key] !== null && data[key] !== '')
+        .map((key) => `${key}: ${data[key]}`)
+        .join(' | ') || JSON.stringify(data);
 }

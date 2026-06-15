@@ -684,6 +684,27 @@ a {
     display: none;
 }
 
+.public-payment-login {
+    width: calc(100% - 52px);
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 26px 0;
+    color: var(--white);
+    background: var(--ficct-blue-900);
+    text-decoration: none;
+}
+
+.public-payment-login:hover {
+    color: var(--white);
+    background: var(--ficct-blue-950);
+}
+
+.public-payment-login[hidden] {
+    display: none;
+}
+
 .public-payment-card .primary-action {
     width: calc(100% - 52px);
     margin: 24px 26px 18px;
@@ -1444,6 +1465,143 @@ th {
     background: var(--danger-bg);
 }
 
+.report-filter-card {
+    margin-bottom: 18px;
+}
+
+.report-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.report-filter-grid label.is-disabled {
+    opacity: 0.48;
+}
+
+.report-actions,
+.report-export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.report-actions .primary-action,
+.report-export-actions .primary-action {
+    width: auto;
+    min-width: 160px;
+    margin: 0;
+    padding: 0 18px;
+}
+
+.report-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.report-summary-grid article {
+    min-width: 0;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+}
+
+.report-summary-grid span,
+.report-summary-grid strong,
+.report-summary-grid small {
+    display: block;
+}
+
+.report-summary-grid span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.report-summary-grid strong {
+    margin-top: 9px;
+    color: var(--ficct-blue-950);
+    font-size: 26px;
+}
+
+.report-summary-grid small {
+    margin-top: 6px;
+    color: var(--muted);
+}
+
+.report-table-card {
+    padding: 24px;
+}
+
+.report-admitted-guide {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 18px;
+}
+
+.report-admitted-guide[hidden] {
+    display: none;
+}
+
+.report-admitted-action {
+    width: auto;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0 18px;
+    text-decoration: none;
+}
+
+.report-result-head {
+    align-items: center;
+}
+
+.report-table-card .table-wrap {
+    max-height: 620px;
+}
+
+@media (max-width: 980px) {
+    .report-filter-grid,
+    .report-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .report-filter-grid,
+    .report-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-result-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .report-export-actions button,
+    .report-actions button,
+    .report-actions .primary-action,
+    .report-export-actions .primary-action {
+        width: 100%;
+    }
+
+    .report-admitted-guide {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .report-admitted-action {
+        width: 100%;
+    }
+}
+
 .preinscriptions-page {
     padding-top: 24px;
 }
@@ -1927,6 +2085,138 @@ th {
     margin: 0;
     color: var(--muted);
     line-height: 1.5;
+}
+
+.distribution-summary-card p.is-error {
+    color: #b42318;
+}
+
+.distribution-preview-panel[hidden],
+.distribution-edit-panel[hidden] {
+    display: none;
+}
+
+.distribution-edit-panel {
+    max-width: 860px;
+}
+
+.distribution-edit-panel small {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+}
+
+.teacher-panel-page {
+    padding-top: 24px;
+}
+
+.teacher-schedule-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.teacher-schedule-summary article {
+    padding: 20px;
+}
+
+.teacher-schedule-summary span,
+.teacher-schedule-summary strong {
+    display: block;
+}
+
+.teacher-schedule-summary span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.teacher-schedule-summary strong {
+    margin-top: 8px;
+    color: var(--ficct-blue-950);
+    font-size: 30px;
+}
+
+.teacher-schedule-summary p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.teacher-schedule-card {
+    margin-bottom: 18px;
+}
+
+.teacher-schedule-filters {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.teacher-schedule-filter {
+    display: grid;
+    min-width: 190px;
+    gap: 6px;
+    color: var(--ficct-blue-950);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.teacher-schedule-filter select {
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--ink);
+    font: inherit;
+}
+
+.teacher-schedule-card td strong,
+.teacher-schedule-card td small,
+#postulantScheduleBody td strong,
+#postulantScheduleBody td small {
+    display: block;
+}
+
+.teacher-schedule-card td small,
+#postulantScheduleBody td small {
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.teacher-actions-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+    .teacher-schedule-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .teacher-schedule-summary,
+    .teacher-actions-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .teacher-schedule-card .users-list-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .teacher-schedule-filter {
+        width: 100%;
+    }
+
+    .teacher-schedule-filters {
+        width: 100%;
+    }
 }
 
 .classrooms-page {
@@ -3088,6 +3378,50 @@ th {
     height: 16px;
 }
 
+.career-quota-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.career-quota-card {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.career-quota-card strong,
+.career-quota-card small {
+    display: block;
+}
+
+.career-quota-card small {
+    color: var(--muted);
+}
+
+.career-quota-card > span {
+    color: var(--brand);
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.career-quota-bar {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #dbe7f4;
+}
+
+.career-quota-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--success);
+}
+
 @media (max-width: 900px) {
     .attendance-student {
         grid-template-columns: 1fr;
@@ -3544,6 +3878,56 @@ svg {
 }
 
 @media (max-width: 520px) {
+    .public-lookup-form {
+        grid-template-columns: 1fr;
+    }
+
+    .public-lookup-form .secondary-action {
+        width: 100%;
+    }
+
+    .public-payment {
+        gap: 24px;
+    }
+
+    .public-payment-summary p,
+    .public-payment-ticket {
+        max-width: none;
+    }
+
+    .public-payment-ticket {
+        padding: 16px;
+    }
+
+    .public-payment-card-head {
+        padding: 16px 14px;
+        letter-spacing: 0.14em;
+    }
+
+    .public-payment-card label {
+        padding: 0 16px;
+    }
+
+    .stripe-payment-box {
+        padding: 18px 16px 0;
+    }
+
+    .public-payment-card .form-alert {
+        margin: 18px 16px 0;
+    }
+
+    .public-payment-download,
+    .public-payment-login,
+    .public-payment-card .primary-action {
+        width: calc(100% - 32px);
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+
+    .public-payment-card > small {
+        padding: 0 16px 20px;
+    }
+
     .portal-main,
     .users-page,
     .cup-content {
@@ -3679,5 +4063,384 @@ svg {
     .portal-shell.is-sidebar-collapsed .portal-main {
         margin-left: 0;
         padding-left: 74px;
+    }
+}
+
+.voice-report-card {
+    margin-bottom: 18px;
+    border-top: 4px solid var(--ficct-gold);
+}
+
+.voice-report-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.voice-command-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.voice-command-field {
+    display: grid;
+    gap: 8px;
+    color: var(--ficct-blue-950);
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.voice-command-field textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfdff;
+    color: var(--ink);
+    font: inherit;
+    line-height: 1.55;
+    resize: vertical;
+    outline: 0;
+}
+
+.voice-command-field textarea:focus {
+    border-color: var(--ficct-blue-500);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.voice-command-actions {
+    display: grid;
+    align-content: start;
+    gap: 10px;
+}
+
+.voice-command-actions .primary-action {
+    margin: 0;
+}
+
+.voice-read-response {
+    margin-top: 4px;
+    font-size: 12px !important;
+}
+
+.voice-report-status {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.voice-status-indicator {
+    width: 10px;
+    height: 10px;
+    margin-top: 4px;
+    border-radius: 50%;
+    background: #8796ad;
+}
+
+.voice-report-status strong,
+.voice-report-status p {
+    display: block;
+    margin: 0;
+}
+
+.voice-report-status p {
+    margin-top: 4px;
+    color: var(--muted);
+    line-height: 1.45;
+}
+
+.voice-report-status.is-listening .voice-status-indicator,
+.voice-report-status.is-processing .voice-status-indicator {
+    background: var(--ficct-gold);
+    box-shadow: 0 0 0 6px rgba(247, 183, 49, 0.2);
+    animation: voice-pulse 1.2s ease-in-out infinite;
+}
+
+.voice-report-status.is-success {
+    border-color: #bcebd0;
+    background: var(--success-bg);
+}
+
+.voice-report-status.is-success .voice-status-indicator {
+    background: var(--success);
+}
+
+.voice-report-status.is-error {
+    border-color: #ffb4ad;
+    background: var(--danger-bg);
+}
+
+.voice-report-status.is-error .voice-status-indicator {
+    background: var(--danger);
+}
+
+.voice-report-result {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr) auto;
+    gap: 16px;
+    align-items: center;
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #b9c9f6;
+    border-radius: 8px;
+    background: #f5f8ff;
+}
+
+.voice-report-result[hidden] {
+    display: none;
+}
+
+.voice-report-result span,
+.voice-report-result strong {
+    display: block;
+}
+
+.voice-report-result > div:first-child > span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.voice-report-result > div:first-child > strong {
+    margin-top: 6px;
+    color: var(--ficct-blue-950);
+    line-height: 1.45;
+}
+
+.voice-report-filter-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.voice-report-filter-tags span {
+    padding: 6px 9px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.voice-report-filter-tags strong {
+    display: inline;
+    color: var(--ficct-blue-950);
+}
+
+.voice-report-result > a {
+    min-width: 150px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+@keyframes voice-pulse {
+    50% {
+        transform: scale(0.72);
+        opacity: 0.72;
+    }
+}
+
+@media (max-width: 980px) {
+    .voice-command-layout,
+    .voice-report-result {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .voice-report-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .voice-report-result > a {
+        width: 100%;
+    }
+}
+
+/* Panel privado del postulante. */
+.postulant-section {
+    margin-bottom: 18px;
+    scroll-margin-top: 22px;
+}
+
+.postulant-section.form-panel {
+    max-width: none;
+}
+
+.postulant-section .module-head > .status-pill {
+    min-height: 26px;
+    margin-left: auto;
+    padding: 0 10px;
+    border: 1px solid #d5deea;
+    color: var(--muted);
+    background: #f6f8fb;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.postulant-section .module-head > .status-pill.is-paid {
+    border-color: #b9c9f6;
+    color: var(--ficct-blue-900);
+    background: #eef4ff;
+}
+
+.postulant-section .module-head > .status-pill.is-validated {
+    border-color: #f1ce73;
+    color: #6c4b00;
+    background: #fff4d2;
+}
+
+.postulant-section .module-head > .status-pill.is-admitted {
+    border-color: #bcebd0;
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+.postulant-section .module-head > .status-pill.is-rejected {
+    border-color: #ffb4ad;
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+.postulant-career-block {
+    margin-top: 20px;
+}
+
+.postulant-career-block h3 {
+    margin: 0 0 12px;
+    color: var(--ficct-blue-950);
+    font-size: 16px;
+}
+
+.postulant-career-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.postulant-career-list > div,
+.postulant-attendance-summary > div {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fbff;
+}
+
+.postulant-career-list span,
+.postulant-career-list strong,
+.postulant-attendance-summary span,
+.postulant-attendance-summary strong {
+    display: block;
+}
+
+.postulant-career-list span,
+.postulant-attendance-summary span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.postulant-career-list strong,
+.postulant-attendance-summary strong {
+    margin-top: 5px;
+    color: var(--ficct-blue-950);
+}
+
+.postulant-download {
+    width: fit-content;
+    margin-top: 18px;
+    text-decoration: none;
+}
+
+.postulant-requirements-list {
+    display: grid;
+}
+
+.postulant-requirements-list > div {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 62px;
+    border-bottom: 1px solid var(--line);
+}
+
+.postulant-requirements-list > div:last-child {
+    border-bottom: 0;
+}
+
+.postulant-document-mark {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.postulant-requirements-list .is-complete .postulant-document-mark {
+    border-color: #9bd5b4;
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+.postulant-attendance-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 18px;
+}
+
+#postulantAssignedCareer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 18px;
+}
+
+#postulantAssignedCareer strong {
+    color: var(--ficct-blue-950);
+    font-size: 18px;
+}
+
+#postulantAssignedCareer p {
+    width: 100%;
+    margin: 0;
+}
+
+@media (max-width: 720px) {
+    .postulant-career-list,
+    .postulant-attendance-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .postulant-section .module-head {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .postulant-section .module-head > .status-pill {
+        grid-column: 1 / -1;
+        width: fit-content;
+        margin-left: 0;
     }
 }

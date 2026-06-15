@@ -295,6 +295,7 @@ async function showPublicPaymentGateway(preinscription) {
     form.hidden = true;
     gateway.hidden = false;
     showPublicPaymentDownload(null);
+    showPublicPaymentLogin(false);
 
     showPublicPaymentMessage('Preinscripcion registrada. Ahora completa el pago de matricula.', true);
 
@@ -317,6 +318,7 @@ async function showPublicPaymentGateway(preinscription) {
             showPublicPaymentMessage(intent.message || 'El pago ya fue registrado para este postulante.', true);
             if (['pagado', 'registrado'].includes(intent.pago?.estado)) {
                 showPublicPaymentDownload(`/api/preinscripciones/${encodeURIComponent(publicPayment.username)}/formulario`);
+                showPublicPaymentLogin(true);
             }
             return;
         }
@@ -442,8 +444,10 @@ async function payPublicMatricula(event) {
             }),
         });
 
-        showPublicPaymentMessage(confirmation.message || 'Pago confirmado correctamente.', confirmation.pago?.estado === 'pagado');
+        const paymentConfirmed = confirmation.pago?.estado === 'pagado';
+        showPublicPaymentMessage(confirmation.message || 'Pago confirmado correctamente.', paymentConfirmed);
         showPublicPaymentDownload(confirmation.formulario_url);
+        showPublicPaymentLogin(paymentConfirmed);
     } catch (error) {
         showPublicPaymentMessage(error.data?.message || error.message, false);
     } finally {
@@ -497,6 +501,14 @@ function showPublicPaymentDownload(url) {
     link.href = url || '#';
 }
 
+function showPublicPaymentLogin(visible) {
+    const link = qs('#publicPaymentLogin');
+
+    if (link) {
+        link.hidden = !visible;
+    }
+}
+
 function resetPublicPaymentElement() {
     if (publicPayment.paymentElement) {
         publicPayment.paymentElement.destroy();
@@ -508,6 +520,7 @@ function resetPublicPaymentElement() {
     publicPayment.paymentIntentId = null;
     publicPayment.clientSecret = null;
     publicPayment.mounted = false;
+    showPublicPaymentLogin(false);
 
     const container = qs('#payment-element');
     if (container) {

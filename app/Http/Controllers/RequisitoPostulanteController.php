@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Bitacora;
 use App\Models\Postulante;
 use App\Models\RequisitoPostulante;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,7 @@ class RequisitoPostulanteController extends Controller
      */
     public function store(Request $request, string $username): JsonResponse
     {
-        Postulante::where('username_postulante', $username)->firstOrFail();
+        $postulante = Postulante::where('username_postulante', $username)->firstOrFail();
 
         $validated = $request->validate([
             'ci_entregado' => ['required', 'boolean'],
@@ -49,13 +50,35 @@ class RequisitoPostulanteController extends Controller
 
         $estado = $this->documentosCompletos($requisitos)
             ? 'validado'
-            : 'pendiente';
+            : 'observado';
+
+        Bitacora::registrar(
+            $estado === 'validado' ? 'aprobar_requisitos' : 'observar_requisitos',
+            'admisiones',
+            $estado === 'validado'
+                ? "Requisitos fisicos aprobados para {$username}."
+                : "Requisitos fisicos observados para {$username}.",
+            [
+                'caso_uso' => 'CU-30 Registrar auditoria de requisitos',
+                'username_postulante' => $username,
+                'nombre_postulante' => $postulante->nombre,
+                'ci_postulante' => $postulante->ci,
+                'ci_entregado' => $validated['ci_entregado'],
+                'titulo_entregado' => $validated['titulo_entregado'],
+                'libretas_entregadas' => $validated['libretas_entregadas'],
+                'observacion' => $validated['observacion'] ?? null,
+                'estado' => $estado,
+                'validado_por' => $validadoPor,
+                'fecha_validacion' => $requisitos->fecha_validacion,
+            ],
+            $request,
+        );
 
         return response()->json([
-            'caso_uso' => 'CU-07 Validar requisitos fisicos',
+            'caso_uso' => 'CU-30 Registrar auditoria de requisitos',
             'message' => $estado === 'validado'
                 ? 'Requisitos fisicos validados correctamente.'
-                : 'Requisitos fisicos guardados. Aun faltan documentos por validar.',
+                : 'Requisitos fisicos observados. Aun faltan documentos por validar.',
             'estado' => $estado,
             'requisitos' => $requisitos,
         ]);

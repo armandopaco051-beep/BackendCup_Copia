@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActaNota;
-use App\Models\DocenteGrupo;
 use App\Models\Grupo;
 use App\Models\Materia;
+use App\Models\PonderacionNota;
 use App\Models\Postulante;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +21,13 @@ class CalificacionController extends Controller
         $query = ActaNota::orderByDesc('id');
 
         if ($this->usuarioActualEsDocente()) {
-            $query->whereIn('id_grupo', $this->codigosGruposDelDocente());
+            $query->whereExists(function ($subquery): void {
+                $subquery->select(DB::raw(1))
+                    ->from('academico.horario_grupo')
+                    ->whereColumn('horario_grupo.id_grupo', 'acta_nota.id_grupo')
+                    ->whereColumn('horario_grupo.id_materia', 'acta_nota.id_materia')
+                    ->where('horario_grupo.username_docente', Auth::user()->username);
+            });
         }
 
         return response()->json([
@@ -46,19 +52,15 @@ class CalificacionController extends Controller
                     'turno' => $grupo->turno ?? null,
                 ])
                 ->values(),
-            'materias' => $this->materiasHabilitadas()
-                ->map(fn (Materia $materia): array => [
-                    'id' => $materia->id,
-                    'nombre' => $materia->nombre,
-                ])
-                ->values(),
+            'materias' => $this->materiasDisponiblesParaUsuario($codigosGrupos),
         ]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate($this->rules());
-        $this->validarDocentePuedeCalificarGrupo($validated['id_grupo']);
+        $this->validarDocentePuedeCalificarHorario($validated['id_grupo'], $validated['id_materia']);
+        $this->validarPostulanteDelGrupo($validated['username_postulante'], $validated['id_grupo']);
         $this->validarDuplicado($validated);
         $validated['promedio'] = $this->promedio($validated);
 
@@ -91,7 +93,8 @@ class CalificacionController extends Controller
             'descripcion',
         ]), $validated);
 
-        $this->validarDocentePuedeCalificarGrupo($payload['id_grupo']);
+        $this->validarDocentePuedeCalificarHorario($payload['id_grupo'], $payload['id_materia']);
+        $this->validarPostulanteDelGrupo($payload['username_postulante'], $payload['id_grupo']);
         $this->validarDuplicado($payload, $calificacion->id);
         $payload['promedio'] = $this->promedio($payload);
 
@@ -105,7 +108,7 @@ class CalificacionController extends Controller
 
     public function destroy(ActaNota $calificacion): JsonResponse
     {
-        $this->validarDocentePuedeCalificarGrupo($calificacion->id_grupo);
+        $this->validarDocentePuedeCalificarHorario($calificacion->id_grupo, $calificacion->id_materia);
 
         $calificacion->delete();
 
@@ -148,7 +151,14 @@ class CalificacionController extends Controller
 
     private function promedio(array $data): float
     {
-        return round(((int) $data['nota1'] + (int) $data['nota2'] + (int) $data['nota3']) / 3, 2);
+        $ponderacion = PonderacionNota::activa();
+
+        return round(
+            ((int) $data['nota1'] * ($ponderacion->nota1_porcentaje / 100))
+            + ((int) $data['nota2'] * ($ponderacion->nota2_porcentaje / 100))
+            + ((int) $data['nota3'] * ($ponderacion->nota3_porcentaje / 100)),
+            2,
+        );
     }
 
     private function usuarioActualEsDocente(): bool
@@ -162,8 +172,11 @@ class CalificacionController extends Controller
             return [];
         }
 
-        return DocenteGrupo::where('username_docente', Auth::user()->username)
-            ->pluck('codigo_grupo')
+        return DB::table('academico.horario_grupo')
+            ->where('username_docente', Auth::user()->username)
+            ->pluck('id_grupo')
+            ->unique()
+            ->values()
             ->all();
     }
 
@@ -182,6 +195,29 @@ class CalificacionController extends Controller
     {
         $query = Postulante::orderBy('nombre')
             ->where('estado', '!=', 'pendiente_pago');
+
+        if ($this->tableExists('postulante_grupo')) {
+            $inscripciones = DB::table('academico.postulante_grupo')
+                ->where('estado', 'inscrito')
+                ->whereIn('id_grupo', $codigosGrupos)
+                ->get(['username_postulante', 'id_grupo']);
+
+            $usernames = $inscripciones->pluck('username_postulante')->unique()->values()->all();
+            $gruposPorPostulante = $inscripciones
+                ->groupBy('username_postulante')
+                ->map(fn ($items) => $items->pluck('id_grupo')->unique()->values()->all());
+
+            return $query
+                ->whereIn('username_postulante', $usernames)
+                ->get(['username_postulante', 'ci', 'nombre'])
+                ->map(fn (Postulante $postulante): array => [
+                    'username' => $postulante->username_postulante,
+                    'ci' => $postulante->ci,
+                    'nombre' => $postulante->nombre,
+                    'grupos' => $gruposPorPostulante[$postulante->username_postulante] ?? [],
+                ])
+                ->values();
+        }
 
         if ($this->usuarioActualEsDocente()) {
             $query->whereIn('username_postulante', function ($subquery) use ($codigosGrupos): void {
@@ -206,15 +242,40 @@ class CalificacionController extends Controller
             ->values();
     }
 
-    private function validarDocentePuedeCalificarGrupo(string $codigoGrupo): void
+    private function validarPostulanteDelGrupo(string $usernamePostulante, string $codigoGrupo): void
+    {
+        if (! $this->tableExists('postulante_grupo')) {
+            return;
+        }
+
+        $exists = DB::table('academico.postulante_grupo')
+            ->where('username_postulante', $usernamePostulante)
+            ->where('id_grupo', $codigoGrupo)
+            ->where('estado', 'inscrito')
+            ->exists();
+
+        if (! $exists) {
+            throw ValidationException::withMessages([
+                'username_postulante' => ['El postulante no esta inscrito oficialmente en el grupo seleccionado.'],
+            ]);
+        }
+    }
+
+    private function validarDocentePuedeCalificarHorario(string $codigoGrupo, string $idMateria): void
     {
         if (! $this->usuarioActualEsDocente()) {
             return;
         }
 
-        if (! in_array($codigoGrupo, $this->codigosGruposDelDocente(), true)) {
+        $exists = DB::table('academico.horario_grupo')
+            ->where('username_docente', Auth::user()->username)
+            ->where('id_grupo', $codigoGrupo)
+            ->where('id_materia', $idMateria)
+            ->exists();
+
+        if (! $exists) {
             throw ValidationException::withMessages([
-                'id_grupo' => ['No tienes permiso para registrar calificaciones en este grupo.'],
+                'id_materia' => ['No tienes permiso para registrar calificaciones en esa materia y grupo.'],
             ]);
         }
     }
@@ -247,9 +308,41 @@ class CalificacionController extends Controller
             'nota2' => $calificacion->nota2,
             'nota3' => $calificacion->nota3,
             'promedio' => $calificacion->promedio,
-            'estado' => $calificacion->promedio >= 51 ? 'aprobado' : 'reprobado',
+            'estado' => $calificacion->promedio >= 60 ? 'aprobado' : 'reprobado',
             'descripcion' => $calificacion->descripcion,
+            'ponderacion' => PonderacionNota::activa()->only([
+                'nota1_porcentaje',
+                'nota2_porcentaje',
+                'nota3_porcentaje',
+            ]),
         ];
+    }
+
+    private function materiasDisponiblesParaUsuario(array $codigosGrupos)
+    {
+        if ($this->tableExists('horario_grupo')) {
+            return DB::table('academico.horario_grupo')
+                ->join('academico.materia', 'materia.id', '=', 'horario_grupo.id_materia')
+                ->whereIn('horario_grupo.id_grupo', $codigosGrupos)
+                ->when($this->usuarioActualEsDocente(), fn ($query) => $query->where('horario_grupo.username_docente', Auth::user()->username))
+                ->selectRaw('horario_grupo.id_materia as id, materia.nombre, horario_grupo.id_grupo as grupo')
+                ->distinct()
+                ->orderBy('materia.nombre')
+                ->get()
+                ->map(fn ($materia): array => [
+                    'id' => $materia->id,
+                    'nombre' => $materia->nombre,
+                    'grupo' => $materia->grupo,
+                ])
+                ->values();
+        }
+
+        return $this->materiasHabilitadas()
+            ->map(fn (Materia $materia): array => [
+                'id' => $materia->id,
+                'nombre' => $materia->nombre,
+            ])
+            ->values();
     }
 
     private function materiasHabilitadas()
@@ -265,5 +358,13 @@ class CalificacionController extends Controller
         }
 
         return $query->get(['id', 'nombre']);
+    }
+
+    private function tableExists(string $table): bool
+    {
+        return DB::table('information_schema.tables')
+            ->where('table_schema', 'academico')
+            ->where('table_name', $table)
+            ->exists();
     }
 }

@@ -83,12 +83,13 @@
                         <tr>
                             <th>Docente</th>
                             <th>Correo</th>
+                            <th>Estado profesional</th>
                             <th>Materias asignadas</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="teacherSubjectTable">
-                        <tr><td colspan="4">Cargando docentes...</td></tr>
+                        <tr><td colspan="5">Cargando docentes...</td></tr>
                     </tbody>
                 </table>
             </div>

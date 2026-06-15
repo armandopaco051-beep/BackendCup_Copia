@@ -196,6 +196,10 @@
                     Descargar formulario
                 </a>
 
+                <a id="publicPaymentLogin" class="secondary-action public-payment-login" href="/login" hidden>
+                    Ir a iniciar sesion
+                </a>
+
                 <button id="publicPaymentButton" class="primary-action" type="submit">
                     <span>Pagar 700.00 Bs</span>
                 </button>

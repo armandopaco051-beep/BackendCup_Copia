@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class DocenteMateriaController extends Controller
 {
@@ -43,6 +44,7 @@ class DocenteMateriaController extends Controller
     public function sync(Request $request, string $username): JsonResponse
     {
         $docente = Docente::where('username_docente', $username)->firstOrFail();
+        $this->validarDocenteHabilitado($docente);
 
         $validated = $request->validate([
             'materias' => ['required', 'array'],
@@ -103,11 +105,26 @@ class DocenteMateriaController extends Controller
             'username' => $docente->username_docente,
             'nombre' => $docente->nombre,
             'correo' => $docente->correo,
+            'titulo_profesional' => $docente->titulo_profesional,
+            'nro_registro_profesional' => $docente->nro_registro_profesional,
+            'estado_profesional' => $docente->estado_profesional ?? 'pendiente_revision',
+            'observacion_profesional' => $docente->observacion_profesional,
+            'max_grupos_periodo' => $docente->max_grupos_periodo ?? 3,
+            'max_horas_semana' => $docente->max_horas_semana ?? 30,
             'especializacion' => $docente->especializacion,
             'maestria' => $docente->maestria,
             'materias_ids' => $materiasAsignadas,
             'materias' => $materias,
         ];
+    }
+
+    private function validarDocenteHabilitado(Docente $docente): void
+    {
+        if (! $docente->estaHabilitadoProfesionalmente()) {
+            throw ValidationException::withMessages([
+                'username_docente' => ['El docente no esta habilitado profesionalmente para impartir materias.'],
+            ]);
+        }
     }
 
     private function materiasDisponibles()

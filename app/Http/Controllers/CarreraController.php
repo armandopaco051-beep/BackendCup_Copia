@@ -39,6 +39,7 @@ class CarreraController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate($this->rules());
+        $validated['cupo_maximo'] = (int) ($validated['cupo_maximo'] ?? 0);
 
         $carrera = Carrera::create($validated);
 
@@ -58,6 +59,7 @@ class CarreraController extends Controller
     public function update(Request $request, Carrera $carrera): JsonResponse
     {
         $validated = $request->validate($this->rules($carrera->codigo));
+        $validated['cupo_maximo'] = (int) ($validated['cupo_maximo'] ?? 0);
 
         $carrera->update($validated);
 
@@ -92,6 +94,7 @@ class CarreraController extends Controller
                 Rule::unique('pgsql.academico.carrera', 'codigo')->ignore($codigo, 'codigo'),
             ],
             'nombre' => ['required', 'string', 'max:500'],
+            'cupo_maximo' => ['nullable', 'integer', 'min:0', 'max:10000'],
             'estado' => ['nullable', Rule::in(['habilitada', 'inactiva'])],
         ];
     }
@@ -101,6 +104,7 @@ class CarreraController extends Controller
         return [
             'codigo' => $carrera->codigo,
             'nombre' => $carrera->nombre,
+            'cupo_maximo' => (int) ($carrera->cupo_maximo ?? 0),
             'estado' => $carrera->estado ?? 'habilitada',
         ];
     }

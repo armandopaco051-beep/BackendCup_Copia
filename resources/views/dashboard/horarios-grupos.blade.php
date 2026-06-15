@@ -78,6 +78,69 @@
             </article>
         </section>
 
+        <article id="scheduleEditPanel" class="module-card is-wide form-panel">
+            <div class="module-head">
+                <span>Manual</span>
+                <div>
+                    <h2 id="scheduleEditTitle">Editar bloque de horario</h2>
+                    <p>Modifica grupo, materia, docente, aula, dia, hora y estado del horario generado.</p>
+                </div>
+            </div>
+
+            <form id="scheduleEditForm" class="portal-form">
+                <input type="hidden" name="id">
+                <div class="form-grid">
+                    <label>Grupo
+                        <select name="id_grupo" id="scheduleGroupSelect" required>
+                            <option value="">Cargando grupos...</option>
+                        </select>
+                    </label>
+                    <label>Materia
+                        <select name="id_materia" id="scheduleSubjectSelect" required>
+                            <option value="">Cargando materias...</option>
+                        </select>
+                    </label>
+                    <label>Docente
+                        <select name="username_docente" id="scheduleTeacherSelect" required>
+                            <option value="">Selecciona una materia</option>
+                        </select>
+                    </label>
+                    <label>Aula
+                        <select name="id_aula" id="scheduleClassroomSelect" required>
+                            <option value="">Cargando aulas...</option>
+                        </select>
+                    </label>
+                    <label>Dia
+                        <select name="id_dia" id="scheduleDaySelect" required>
+                            <option value="">Cargando dias...</option>
+                        </select>
+                    </label>
+                    <label>Turno
+                        <select name="turno" required>
+                            <option value="mañana">Mañana</option>
+                            <option value="tarde">Tarde</option>
+                            <option value="noche">Noche</option>
+                        </select>
+                    </label>
+                    <label>Hora inicio<input name="hora_inicio" type="time" required></label>
+                    <label>Hora fin<input name="hora_fin" type="time" required></label>
+                    <label>Estado
+                        <select name="estado" required>
+                            <option value="propuesto">Propuesto</option>
+                            <option value="confirmado">Confirmado</option>
+                        </select>
+                    </label>
+                </div>
+
+                <p id="scheduleEditOutput" class="module-note"></p>
+
+                <div class="distribution-actions">
+                    <button class="primary-action" type="submit"><span>Guardar bloque</span></button>
+                    <button class="secondary-action" type="button" data-clear-schedule-edit>Nuevo bloque</button>
+                </div>
+            </form>
+        </article>
+
         <article class="module-card is-wide">
             <div class="users-list-head">
                 <div>

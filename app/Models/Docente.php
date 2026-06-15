@@ -28,9 +28,21 @@ class Docente extends Model
         'correo',
         'telefono',
         'ciudad',
+        'titulo_profesional',
+        'nro_registro_profesional',
+        'estado_profesional',
+        'observacion_profesional',
+        'max_grupos_periodo',
+        'max_horas_semana',
         'especializacion',
         'maestria',
     ];
+
+    public function estaHabilitadoProfesionalmente(): bool
+    {
+        return $this->estado_profesional === 'habilitado'
+            && filled($this->titulo_profesional);
+    }
 
     public function materias(): BelongsToMany
     {

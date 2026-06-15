@@ -11,7 +11,7 @@
             <div>
                 <span class="section-kicker">CU-13</span>
                 <h1>Calcular distribucion de grupos</h1>
-                <p>Genera grupos automaticamente segun postulantes habilitados y cupo maximo.</p>
+                <p>Consulta los grupos guardados y amplia la capacidad cuando sea necesario.</p>
                 <small id="dashboardUser" class="session-chip">Cargando sesion...</small>
             </div>
             <button class="secondary-action" type="button" data-calculate-groups>Vista previa</button>
@@ -23,30 +23,32 @@
                     <span>Parametros</span>
                     <div>
                         <h2>Reglas de calculo</h2>
-                        <p>El sistema usa Grupo-G01, Grupo-G02 y turnos rotativos.</p>
+                        <p>El cupo indicado se aplica solamente a los grupos nuevos.</p>
                     </div>
                 </div>
 
                 <form id="distributionForm" class="portal-form">
                     <div class="form-grid">
-                        <label>ID periodo
-                            <input name="periodo_id" type="number" placeholder="Opcional">
+                        <label>Periodo academico
+                            <select name="periodo_id" id="distributionPeriodSelect" required>
+                                <option value="">Cargando periodos...</option>
+                            </select>
                         </label>
-                        <label>Cupo maximo por grupo
-                            <input name="cupo_maximo" type="number" min="1" max="200" value="70">
+                        <label>Cupo maximo para grupos nuevos
+                            <input name="cupo_maximo" type="number" min="1" max="200" value="70" required>
                         </label>
                     </div>
 
-                    <div class="distribution-turns">
+                    <div class="distribution-turns" aria-label="Turnos disponibles">
                         <span>Mañana</span>
                         <span>Tarde</span>
                         <span>Noche</span>
                     </div>
 
                     <div class="distribution-actions">
-                        <button class="secondary-action" type="submit">Calcular distribucion</button>
+                        <button class="secondary-action" type="submit">Calcular ampliacion</button>
                         <button class="primary-action distribution-generate" type="button" data-generate-groups>
-                            <span>Generar grupos</span>
+                            Generar grupos faltantes
                         </button>
                     </div>
                 </form>
@@ -60,25 +62,54 @@
                         <strong id="distributionTotal">0</strong>
                     </div>
                     <div>
-                        <span>Cupo maximo</span>
-                        <strong id="distributionCapacity">70</strong>
+                        <span>Capacidad guardada</span>
+                        <strong id="distributionCapacity">0</strong>
                     </div>
                     <div>
-                        <span>Grupos necesarios</span>
+                        <span>Grupos activos</span>
                         <strong id="distributionGroupsCount">0</strong>
                     </div>
                 </div>
-                <p id="distributionNotice">Calcula una vista previa antes de generar grupos.</p>
+                <p id="distributionNotice">Selecciona un periodo para consultar su distribucion guardada.</p>
             </aside>
         </section>
 
         <article class="module-card is-wide distribution-result-card">
             <div class="users-list-head">
                 <div>
-                    <h2>Grupos calculados</h2>
-                    <p id="distributionCount">Sin datos calculados</p>
+                    <h2>Distribucion guardada</h2>
+                    <p id="distributionCount">Cargando grupos</p>
                 </div>
                 <span id="distributionPeriod" class="status-pill">Periodo sin definir</span>
+            </div>
+
+            <div class="table-wrap users-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Codigo</th>
+                            <th>Turno</th>
+                            <th>Cupo maximo</th>
+                            <th>Inscritos</th>
+                            <th>Disponibles</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="distributionTable">
+                        <tr><td colspan="7">Cargando distribucion guardada.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article id="distributionPreviewPanel" class="module-card is-wide distribution-preview-panel" hidden>
+            <div class="users-list-head">
+                <div>
+                    <h2>Vista previa de ampliacion</h2>
+                    <p id="distributionPreviewCount">Sin calculo pendiente</p>
+                </div>
+                <span class="status-pill is-validated">No modifica lo guardado</span>
             </div>
 
             <div class="table-wrap users-table-wrap">
@@ -91,11 +122,51 @@
                             <th>Descripcion</th>
                         </tr>
                     </thead>
-                    <tbody id="distributionTable">
-                        <tr><td colspan="4">Pulsa calcular distribucion.</td></tr>
-                    </tbody>
+                    <tbody id="distributionPreviewTable"></tbody>
                 </table>
             </div>
+        </article>
+
+        <article id="distributionEditPanel" class="module-card is-wide distribution-edit-panel" hidden>
+            <div class="module-head">
+                <span>Editar</span>
+                <div>
+                    <h2>Actualizar grupo guardado</h2>
+                    <p>La capacidad no puede ser menor que sus estudiantes inscritos.</p>
+                </div>
+            </div>
+
+            <form id="distributionEditForm" class="portal-form">
+                <div class="form-grid">
+                    <label>Codigo
+                        <input name="codigo" type="text" readonly>
+                    </label>
+                    <label>Cupo maximo
+                        <input name="cupo_maximo" type="number" min="1" max="200" required>
+                        <small>Inscritos actualmente: <strong id="distributionEditOccupancy">0</strong></small>
+                    </label>
+                    <label>Turno
+                        <select name="turno" required>
+                            <option value="mañana">Mañana</option>
+                            <option value="tarde">Tarde</option>
+                            <option value="noche">Noche</option>
+                        </select>
+                    </label>
+                    <label>Estado
+                        <select name="estado" required>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </label>
+                </div>
+                <label>Descripcion
+                    <textarea name="descripcion" rows="3" maxlength="500"></textarea>
+                </label>
+                <div class="distribution-actions">
+                    <button class="primary-action" type="submit">Guardar cambios</button>
+                    <button class="secondary-action" type="button" data-cancel-group-edit>Cancelar</button>
+                </div>
+            </form>
         </article>
     </section>
 </main>

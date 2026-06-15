@@ -6,6 +6,7 @@
         'docente' => [
             'Docente' => [
                 ['key' => 'docente-dashboard', 'href' => '/dashboard/docente', 'label' => 'Panel docente'],
+                ['key' => 'docente-horario', 'href' => '/dashboard/docente#mi-horario-docente', 'label' => 'Mi horario'],
                 ['key' => 'calificaciones', 'href' => '/dashboard/calificaciones', 'label' => 'Registrar calificaciones'],
                 ['key' => 'asistencias', 'href' => '/dashboard/asistencias', 'label' => 'Registrar asistencia'],
             ],
@@ -18,10 +19,11 @@
                 ['key' => 'postulante-dashboard', 'href' => '/dashboard/postulante', 'label' => 'Mi panel'],
             ],
             'Proceso CUP' => [
-                ['key' => 'postulante-preinscripcion', 'href' => '/dashboard/postulante', 'label' => 'Mi preinscripcion'],
-                ['key' => 'postulante-requisitos', 'href' => '/dashboard/postulante', 'label' => 'Mis requisitos'],
-                ['key' => 'postulante-pago', 'href' => '/dashboard/postulante', 'label' => 'Mi pago'],
-                ['key' => 'postulante-notas', 'href' => '/dashboard/postulante', 'label' => 'Mis calificaciones'],
+                ['key' => 'postulante-preinscripcion', 'href' => '/dashboard/postulante#mi-preinscripcion', 'label' => 'Mi preinscripcion'],
+                ['key' => 'postulante-requisitos', 'href' => '/dashboard/postulante#mis-requisitos', 'label' => 'Mis requisitos'],
+                ['key' => 'postulante-pago', 'href' => '/dashboard/postulante#mi-pago', 'label' => 'Mi pago'],
+                ['key' => 'postulante-grupo', 'href' => '/dashboard/postulante#mi-grupo', 'label' => 'Mi grupo y horario'],
+                ['key' => 'postulante-notas', 'href' => '/dashboard/postulante#mis-calificaciones', 'label' => 'Mis calificaciones'],
             ],
             'Cuenta' => [
                 ['key' => 'perfil', 'href' => '/dashboard/perfil', 'label' => 'Perfil'],
@@ -47,11 +49,18 @@
             'Academico' => [
                 ['key' => 'catalogos', 'href' => '/dashboard/catalogos-academicos', 'label' => 'Carreras y materias'],
                 ['key' => 'docentes-materias', 'href' => '/dashboard/docentes-materias', 'label' => 'Asignar materias a docentes'],
+                ['key' => 'docentes-horarios', 'href' => '/dashboard/docentes-horarios', 'label' => 'Asignar docentes a horarios'],
                 ['key' => 'distribucion', 'href' => '/dashboard/distribucion-grupos', 'label' => 'Distribucion grupos'],
                 ['key' => 'horarios-grupos', 'href' => '/dashboard/horarios-grupos', 'label' => 'Horarios de grupos'],
+                ['key' => 'postulantes-grupos', 'href' => '/dashboard/postulantes-grupos', 'label' => 'Asignar estudiantes a grupos'],
+                ['key' => 'asignacion-carreras', 'href' => '/dashboard/asignacion-carreras', 'label' => 'Asignacion carreras'],
                 ['key' => 'aulas', 'href' => '/dashboard/aulas', 'label' => 'Gestion de aulas'],
                 ['key' => 'calificaciones', 'href' => '/dashboard/calificaciones', 'label' => 'Calificaciones'],
+                ['key' => 'ponderaciones-notas', 'href' => '/dashboard/ponderaciones-notas', 'label' => 'Ponderaciones notas'],
                 ['key' => 'asistencias', 'href' => '/dashboard/asistencias', 'label' => 'Asistencia'],
+            ],
+            'Reportes' => [
+                ['key' => 'reportes', 'href' => '/dashboard/reportes', 'label' => 'Reportes dinamicos'],
             ],
             'Cuenta' => [
                 ['key' => 'perfil', 'href' => '/dashboard/perfil', 'label' => 'Perfil'],

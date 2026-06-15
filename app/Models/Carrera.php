@@ -24,6 +24,7 @@ class Carrera extends Model
     protected $fillable = [
         'codigo',
         'nombre',
+        'cupo_maximo',
         'estado',
     ];
 }

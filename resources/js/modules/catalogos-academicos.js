@@ -29,7 +29,7 @@ async function loadCareers() {
         careers = data.carreras || [];
         renderCareers();
     } catch (error) {
-        qs('#careerCatalogTable').innerHTML = `<tr><td colspan="4">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
+        qs('#careerCatalogTable').innerHTML = `<tr><td colspan="5">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
     }
 }
 
@@ -41,13 +41,14 @@ function renderCareers() {
         <tr>
             <td>${escapeHtml(career.codigo)}</td>
             <td><strong>${escapeHtml(career.nombre)}</strong></td>
+            <td>${escapeHtml(career.cupo_maximo ?? 0)}</td>
             <td><span class="status-pill ${statusClass(career.estado)}">${escapeHtml(career.estado || 'habilitada')}</span></td>
             <td class="table-actions">
                 <button type="button" data-edit-career-catalog="${escapeHtml(career.codigo)}">Editar</button>
                 <button type="button" data-delete-career-catalog="${escapeHtml(career.codigo)}">Eliminar</button>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="4">No hay carreras registradas.</td></tr>';
+    `).join('') || '<tr><td colspan="5">No hay carreras registradas.</td></tr>';
 
     if (count) {
         count.textContent = `${careers.length} carrera(s) registrada(s)`;
@@ -73,6 +74,7 @@ function fillCareerForm(code) {
     form.elements.original_codigo.value = career.codigo;
     form.elements.codigo.value = career.codigo;
     form.elements.nombre.value = career.nombre;
+    form.elements.cupo_maximo.value = career.cupo_maximo ?? 0;
     form.elements.estado.value = career.estado || 'habilitada';
     qs('#careerFormTitle').textContent = `Editar carrera ${career.codigo}`;
 }
@@ -103,6 +105,7 @@ async function saveCareer(event) {
     delete payload.original_codigo;
     payload.codigo = payload.codigo?.trim().toUpperCase();
     payload.nombre = payload.nombre?.trim();
+    payload.cupo_maximo = Number(payload.cupo_maximo || 0);
 
     try {
         const data = await apiRequest(original ? `/api/carreras/${encodeURIComponent(original)}` : '/api/carreras', {

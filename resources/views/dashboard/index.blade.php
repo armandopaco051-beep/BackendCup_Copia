@@ -45,23 +45,23 @@
                 <h1>Dashboard del Curso Preuniversitario</h1>
                 <p id="dashboardUser" class="cup-session">Cargando sesion...</p>
             </div>
-            <span class="cup-period">
+            <span id="dashboardPeriod" class="cup-period">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M8 2v4"></path>
                     <path d="M16 2v4"></path>
                     <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                     <path d="M3 10h18"></path>
                 </svg>
-                Periodo CUP 2026-I
+                Periodo CUP
             </span>
         </div>
 
         <section class="cup-stats" aria-label="Indicadores principales">
             <article>
                 <div>
-                    <span>Postulantes</span>
-                    <strong id="metricPostulantes">...</strong>
-                    <small>Datos actuales de la base</small>
+                    <span>Total inscritos</span>
+                    <strong id="metricInscritos">...</strong>
+                    <small>Preinscripciones confirmadas</small>
                 </div>
                 <div class="cup-stat-icon">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -74,9 +74,9 @@
             </article>
             <article>
                 <div>
-                    <span>Preinscripciones</span>
-                    <strong id="metricPreinscripciones">...</strong>
-                    <small>Datos actuales de la base</small>
+                    <span>Total aprobados</span>
+                    <strong id="metricAprobados">...</strong>
+                    <small>Promedio general igual o mayor a 60</small>
                 </div>
                 <div class="cup-stat-icon is-gold">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -89,9 +89,9 @@
             </article>
             <article>
                 <div>
-                    <span>Matriculas pagadas</span>
-                    <strong id="metricMatriculas">...</strong>
-                    <small>Datos actuales de la base</small>
+                    <span>Total reprobados</span>
+                    <strong id="metricReprobados">...</strong>
+                    <small>Promedio general menor a 60</small>
                 </div>
                 <div class="cup-stat-icon">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -102,9 +102,9 @@
             </article>
             <article>
                 <div>
-                    <span>Admitidos</span>
-                    <strong id="metricAdmitidos">...</strong>
-                    <small>Datos actuales de la base</small>
+                    <span>Grupos habilitados</span>
+                    <strong id="metricGruposHabilitados">...</strong>
+                    <small>Grupos académicos activos</small>
                 </div>
                 <div class="cup-stat-icon is-gold">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
