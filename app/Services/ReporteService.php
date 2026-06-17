@@ -60,6 +60,7 @@ class ReporteService
 
     private function reporteListaAdmitidos(array $filtros, int $limite): array
     {
+        $periodoId = $filtros['periodo'] ?? $this->periodoActivoId();
         $query = DB::table('academico.asignacion_carrera as asignacion')
             ->join(
                 'academico.postulante as postulante',
@@ -73,6 +74,7 @@ class ReporteService
                 'asignacion.username_postulante',
                 'postulante.ci',
                 'postulante.nombre',
+                'asignacion.id_periodo_academico',
                 'asignacion.promedio_final',
                 'asignacion.nota3_promedio',
                 'asignacion.nota2_promedio',
@@ -82,6 +84,10 @@ class ReporteService
                 'carrera.nombre as carrera',
                 'asignacion.motivo',
             );
+
+        if ($periodoId) {
+            $query->where('asignacion.id_periodo_academico', $periodoId);
+        }
 
         if (! empty($filtros['buscar'])) {
             $buscar = mb_strtolower($filtros['buscar']);
@@ -98,7 +104,7 @@ class ReporteService
             $query->where('asignacion.id_carrera', $filtros['carrera']);
         }
 
-        if (! empty($filtros['periodo']) || ! empty($filtros['grupo'])) {
+        if (! empty($filtros['grupo'])) {
             $query->whereExists(function ($subquery) use ($filtros): void {
                 $subquery->selectRaw('1')
                     ->from('academico.postulante_grupo as inscripcion')
@@ -108,14 +114,12 @@ class ReporteService
                     )
                     ->where('inscripcion.estado', 'inscrito');
 
-                if (! empty($filtros['periodo'])) {
-                    $subquery->where('inscripcion.id_periodo_academico', $filtros['periodo']);
-                }
                 if (! empty($filtros['grupo'])) {
                     $subquery->where('inscripcion.id_grupo', $filtros['grupo']);
                 }
             });
         }
+        $this->filtrarDocentePostulanteQueryBuilder($query, $filtros, 'asignacion.username_postulante');
 
         $total = (clone $query)->count();
         $admitidos = $query
@@ -167,7 +171,7 @@ class ReporteService
 
         return [
             ...$respuesta,
-            'lista_generada' => AsignacionCarrera::exists(),
+            'lista_generada' => AsignacionCarrera::when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))->exists(),
             'generar_url' => '/dashboard/asignacion-carreras',
         ];
     }
@@ -175,6 +179,7 @@ class ReporteService
     private function reportePostulantes(array $filtros, int $limite): array
     {
         $query = Postulante::query()
+            ->with('periodoAcademico')
             ->where('estado', '!=', 'pendiente_pago')
             ->orderByDesc('username_postulante');
 
@@ -192,7 +197,8 @@ class ReporteService
         $this->filtrarEstadoPostulante($query, $filtros['estado'] ?? null);
 
         $this->filtrarCarrera($query, $filtros);
-        $this->filtrarGrupoPeriodo($query, $filtros);
+        $this->filtrarGrupoPeriodo($query, $filtros, false, true);
+        $this->filtrarDocentePostulante($query, $filtros);
         $this->filtrarFechaPago($query, $filtros);
 
         $total = (clone $query)->count();
@@ -211,7 +217,8 @@ class ReporteService
                 'correo' => $postulante->correo,
                 'carrera' => $this->nombresCarreras($username, $contexto),
                 'grupo' => $this->nombresGrupos($username, $contexto),
-                'periodo' => $this->nombresPeriodos($username, $contexto),
+                'periodo' => $postulante->periodoAcademico?->nombre
+                    ?? $this->nombresPeriodos($username, $contexto),
                 'estado' => $postulante->estado,
                 'pago' => $pago?->estado ?? 'sin_pago',
                 'requisitos' => $this->estadoRequisitos($requisito),
@@ -274,6 +281,7 @@ class ReporteService
 
         $this->filtrarCarrera($query, $filtros);
         $this->filtrarGrupoPeriodo($query, $filtros);
+        $this->filtrarDocentePostulante($query, $filtros);
 
         if (! empty($filtros['fecha_inicio'])) {
             $query->whereDate('fecha_pago', '>=', $filtros['fecha_inicio']);
@@ -364,6 +372,7 @@ class ReporteService
 
         $this->filtrarCarrera($query, $filtros);
         $this->filtrarGrupoPeriodo($query, $filtros, true);
+        $this->filtrarDocenteNotas($query, $filtros);
 
         $total = (clone $query)->count();
         $calificaciones = $query->limit($limite)->get();
@@ -470,6 +479,7 @@ class ReporteService
         }
 
         $this->filtrarCarreraQueryBuilder($query, $filtros, 'nota.username_postulante');
+        $this->filtrarDocenteNotasQueryBuilder($query, $filtros);
 
         if ($estadoSolicitado === 'aprobado') {
             $query->havingRaw('AVG(nota.promedio) >= ?', [self::NOTA_MINIMA]);
@@ -574,6 +584,7 @@ class ReporteService
         }
 
         $this->filtrarCarreraQueryBuilder($query, $filtros, 'nota.username_postulante');
+        $this->filtrarDocenteNotasQueryBuilder($query, $filtros);
 
         $total = DB::query()->fromSub(clone $query, 'estadisticas')->count();
         $estadisticas = $query->orderByDesc('promedio')->limit($limite)->get();
@@ -629,6 +640,17 @@ class ReporteService
         }
         if (! empty($filtros['periodo'])) {
             $query->where('id_periodo_academico', $filtros['periodo']);
+        }
+        if (! empty($filtros['docente'])) {
+            $query->whereIn('codigo', function ($subquery) use ($filtros): void {
+                $subquery->select('horario.id_grupo')
+                    ->from('academico.horario_grupo as horario')
+                    ->where('horario.username_docente', $filtros['docente']);
+
+                if (! empty($filtros['periodo'])) {
+                    $subquery->where('horario.id_periodo_academico', $filtros['periodo']);
+                }
+            });
         }
 
         $total = (clone $query)->count();
@@ -734,6 +756,9 @@ class ReporteService
         if (! empty($filtros['grupo'])) {
             $query->where('horario.id_grupo', $filtros['grupo']);
         }
+        if (! empty($filtros['docente'])) {
+            $query->where('horario.username_docente', $filtros['docente']);
+        }
         if (! empty($filtros['periodo'])) {
             $query->where('horario.id_periodo_academico', $filtros['periodo']);
         }
@@ -801,6 +826,7 @@ class ReporteService
         }
 
         $this->filtrarCarreraQueryBuilder($promediosEstudiante, $filtros, 'nota.username_postulante');
+        $this->filtrarDocenteNotasQueryBuilder($promediosEstudiante, $filtros);
 
         $query = DB::query()
             ->fromSub($promediosEstudiante, 'resultado')
@@ -909,6 +935,103 @@ class ReporteService
         );
     }
 
+    private function filtrarDocentePostulante(Builder $query, array $filtros, string $usernameColumn = 'username_postulante'): void
+    {
+        if (empty($filtros['docente'])) {
+            return;
+        }
+
+        $query->whereIn($usernameColumn, function ($subquery) use ($filtros): void {
+            $subquery->select('inscripcion.username_postulante')
+                ->from('academico.postulante_grupo as inscripcion')
+                ->where('inscripcion.estado', 'inscrito')
+                ->whereExists(function ($horario) use ($filtros): void {
+                    $horario->selectRaw('1')
+                        ->from('academico.horario_grupo as horario')
+                        ->whereColumn('horario.id_grupo', 'inscripcion.id_grupo')
+                        ->where('horario.username_docente', $filtros['docente']);
+
+                    if (! empty($filtros['periodo'])) {
+                        $horario->where('horario.id_periodo_academico', $filtros['periodo']);
+                    }
+                });
+
+            if (! empty($filtros['periodo'])) {
+                $subquery->where('inscripcion.id_periodo_academico', $filtros['periodo']);
+            }
+        });
+    }
+
+    private function filtrarDocentePostulanteQueryBuilder($query, array $filtros, string $usernameColumn): void
+    {
+        if (empty($filtros['docente'])) {
+            return;
+        }
+
+        $query->whereExists(function ($subquery) use ($filtros, $usernameColumn): void {
+            $subquery->selectRaw('1')
+                ->from('academico.postulante_grupo as inscripcion')
+                ->whereColumn('inscripcion.username_postulante', $usernameColumn)
+                ->where('inscripcion.estado', 'inscrito')
+                ->whereExists(function ($horario) use ($filtros): void {
+                    $horario->selectRaw('1')
+                        ->from('academico.horario_grupo as horario')
+                        ->whereColumn('horario.id_grupo', 'inscripcion.id_grupo')
+                        ->where('horario.username_docente', $filtros['docente']);
+
+                    if (! empty($filtros['periodo'])) {
+                        $horario->where('horario.id_periodo_academico', $filtros['periodo']);
+                    }
+                });
+
+            if (! empty($filtros['periodo'])) {
+                $subquery->where('inscripcion.id_periodo_academico', $filtros['periodo']);
+            }
+        });
+    }
+
+    private function filtrarDocenteNotas(Builder $query, array $filtros): void
+    {
+        if (empty($filtros['docente'])) {
+            return;
+        }
+
+        $query->whereExists(function ($subquery) use ($filtros): void {
+            $subquery->selectRaw('1')
+                ->from('academico.horario_grupo as horario')
+                ->whereRaw('horario.id_grupo = acta_nota.id_grupo')
+                ->whereRaw('horario.id_materia = acta_nota.id_materia')
+                ->where('horario.username_docente', $filtros['docente']);
+
+            if (! empty($filtros['periodo'])) {
+                $subquery->where('horario.id_periodo_academico', $filtros['periodo']);
+            }
+        });
+    }
+
+    private function filtrarDocenteNotasQueryBuilder(
+        $query,
+        array $filtros,
+        string $grupoColumn = 'nota.id_grupo',
+        string $materiaColumn = 'nota.id_materia',
+    ): void {
+        if (empty($filtros['docente'])) {
+            return;
+        }
+
+        $query->whereExists(function ($subquery) use ($filtros, $grupoColumn, $materiaColumn): void {
+            $subquery->selectRaw('1')
+                ->from('academico.horario_grupo as horario')
+                ->whereColumn('horario.id_grupo', $grupoColumn)
+                ->whereColumn('horario.id_materia', $materiaColumn)
+                ->where('horario.username_docente', $filtros['docente']);
+
+            if (! empty($filtros['periodo'])) {
+                $subquery->where('horario.id_periodo_academico', $filtros['periodo']);
+            }
+        });
+    }
+
     private function filtrarEstadoPostulante(Builder $query, ?string $estado): void
     {
         if (! $estado) {
@@ -957,7 +1080,12 @@ class ReporteService
         $query->where('estado', $estado);
     }
 
-    private function filtrarGrupoPeriodo(Builder $query, array $filtros, bool $grupoDirecto = false): void
+    private function filtrarGrupoPeriodo(
+        Builder $query,
+        array $filtros,
+        bool $grupoDirecto = false,
+        bool $periodoDirectoPostulante = false,
+    ): void
     {
         $grupos = PostulanteGrupo::query()
             ->select('username_postulante')
@@ -970,7 +1098,14 @@ class ReporteService
             $grupos->where('id_periodo_academico', $filtros['periodo']);
         }
 
-        if (! empty($filtros['periodo']) || (! $grupoDirecto && ! empty($filtros['grupo']))) {
+        if ($periodoDirectoPostulante && ! empty($filtros['periodo'])) {
+            $query->where('id_periodo_academico', $filtros['periodo']);
+        }
+
+        $filtrarPorInscripcion = (! $periodoDirectoPostulante && ! empty($filtros['periodo']))
+            || (! $grupoDirecto && ! empty($filtros['grupo']));
+
+        if ($filtrarPorInscripcion) {
             $query->whereIn('username_postulante', $grupos);
         }
     }
@@ -1061,6 +1196,11 @@ class ReporteService
         return $requisito->ci_entregado && $requisito->titulo_entregado && $requisito->libretas_entregadas
             ? 'validado'
             : 'observado';
+    }
+
+    private function periodoActivoId(): ?int
+    {
+        return PeriodoAcademico::where('estado', 'activo')->orderByDesc('id')->value('id');
     }
 
     private function respuesta(

@@ -33,7 +33,7 @@ async function loadClassrooms() {
 async function loadCapacity() {
     try {
         const data = await apiRequest('/api/aulas/cupos');
-        renderCapacity(data.aulas || [], data.resumen || {});
+        renderCapacity(data.aulas || [], data.resumen || {}, data.periodo || null);
     } catch (error) {
         qs('#classroomCapacityTable').innerHTML = `<tr><td colspan="6">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
     }
@@ -101,10 +101,10 @@ function renderClassrooms(filter = '') {
     });
 }
 
-function renderCapacity(items, summary) {
+function renderCapacity(items, summary, period) {
     qs('#classroomTotal').textContent = numberFormat(summary.total_aulas || items.length);
     qs('#classroomAvailable').textContent = numberFormat(summary.disponibles);
-    qs('#classroomCapacity').textContent = numberFormat(summary.sin_cupo);
+    qs('#classroomCapacity').textContent = numberFormat(summary.capacidad_total || 0);
     const average = items.length
         ? Math.round(items.reduce((total, item) => total + Number(item.porcentaje_uso || 0), 0) / items.length)
         : 0;
@@ -126,7 +126,7 @@ function renderCapacity(items, summary) {
         return `
             <tr>
                 <td><strong>Aula ${escapeHtml(item.nro_aula)}</strong></td>
-                <td>${escapeHtml(item.tipo)}</td>
+                <td>${escapeHtml(item.piso)}</td>
                 <td>${escapeHtml(item.capacidad)}</td>
                 <td>${escapeHtml(item.ocupacion)}</td>
                 <td>
@@ -139,7 +139,8 @@ function renderCapacity(items, summary) {
     }).join('') || '<tr><td colspan="6">No hay aulas para validar cupos.</td></tr>';
 
     if (count) {
-        count.textContent = `${numberFormat(summary.total_aulas || items.length)} aula(s): ${numberFormat(summary.disponibles)} disponibles, ${numberFormat(summary.casi_llenas)} casi llenas, ${numberFormat(summary.sin_cupo)} sin cupo.`;
+        const periodName = period?.nombre || summary.periodo || 'periodo activo';
+        count.textContent = `${numberFormat(summary.total_aulas || items.length)} aula(s) del ${periodName}: ${numberFormat(summary.disponibles)} disponibles, ${numberFormat(summary.casi_llenas)} casi llenas, ${numberFormat(summary.sin_cupo)} sin cupo.`;
     }
 }
 

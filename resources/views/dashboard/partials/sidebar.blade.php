@@ -1,6 +1,7 @@
 @php
     $active = $active ?? 'dashboard';
-    $tipo = auth()->user()?->tipo ?? 'administrativo';
+    $usuarioActual = auth()->user();
+    $tipo = $usuarioActual?->tipo ?? 'administrativo';
 
     $groups = match ($tipo) {
         'docente' => [
@@ -67,6 +68,56 @@
             ],
         ],
     };
+
+    if ($tipo === 'docente' && $usuarioActual?->tienePermiso('generar_reportes')) {
+        $groups['Reportes'] = [
+            ['key' => 'reportes', 'href' => '/dashboard/reportes', 'label' => 'Reportes academicos'],
+        ];
+    }
+
+    if ($tipo === 'administrativo' && ! $usuarioActual?->esAdministrador()) {
+        $permisosPorModulo = [
+            'dashboard' => ['visualizar_dashboard'],
+            'usuarios' => ['listar_usuario'],
+            'roles' => ['__solo_administrador__'],
+            'bitacora' => ['__solo_administrador__'],
+            'password' => [],
+            'periodo' => ['__solo_administrador__'],
+            'preinscripciones' => ['consultar_postulante'],
+            'requisitos' => ['habilitar_postulante'],
+            'pagos' => ['consultar_pago', 'registrar_pago', 'validar_pago'],
+            'habilitacion' => ['habilitar_postulante'],
+            'catalogos' => ['consultar_carrera', 'registrar_carrera', 'modificar_carrera'],
+            'docentes-materias' => ['asignar_materias'],
+            'docentes-horarios' => ['asignar_horarios', 'controlar_carga_horaria_docente'],
+            'distribucion' => ['calcular_grupos'],
+            'horarios-grupos' => ['asignar_horarios'],
+            'postulantes-grupos' => ['asignar_grupos'],
+            'asignacion-carreras' => ['asignar_carrera'],
+            'aulas' => ['controlar_aulas'],
+            'calificaciones' => ['registrar_nota', 'modificar_nota'],
+            'ponderaciones-notas' => ['calcular_promedio'],
+            'asistencias' => ['registrar_asistencia'],
+            'reportes' => ['generar_reportes'],
+            'perfil' => [],
+        ];
+
+        $groups = collect($groups)
+            ->map(function (array $items) use ($usuarioActual, $permisosPorModulo): array {
+                return collect($items)
+                    ->filter(function (array $item) use ($usuarioActual, $permisosPorModulo): bool {
+                        $permisos = $permisosPorModulo[$item['key']] ?? [];
+
+                        return $permisos === []
+                            || (! in_array('__solo_administrador__', $permisos, true)
+                                && $usuarioActual->tienePermiso($permisos));
+                    })
+                    ->values()
+                    ->all();
+            })
+            ->filter()
+            ->all();
+    }
 @endphp
 
 <button class="portal-sidebar-scrim" type="button" data-portal-sidebar-overlay aria-label="Cerrar menu"></button>

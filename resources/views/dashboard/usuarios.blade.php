@@ -60,7 +60,7 @@
                     <span>CU-03</span>
                     <div>
                         <h2 id="userFormTitle">Nuevo usuario</h2>
-                        <p>Registra administrativos o docentes.</p>
+                        <p>Registra administradores, coordinadores o docentes.</p>
                     </div>
                 </div>
 
@@ -72,13 +72,14 @@
                         <label>Tipo
                             <select name="tipo" required>
                                 <option value="administrativo">Administrativo</option>
+                                <option value="coordinador">Coordinador</option>
                                 <option value="docente">Docente</option>
                             </select>
                         </label>
                         <label>Nombre<input name="nombre" required placeholder="Nombre completo"></label>
                         <label>Correo<input name="correo" type="email" required placeholder="correo@uagrm.edu.bo"></label>
-                        <label>Telefono<input name="telefono" maxlength="10" pattern="[0-9]{7,10}" placeholder="70000000"></label>
-                        <label>Ciudad<input name="ciudad" placeholder="Santa Cruz"></label>
+                        <label>Telefono<input name="telefono" required maxlength="10" pattern="[0-9]{7,10}" placeholder="70000000"></label>
+                        <label>Ciudad<input name="ciudad" required placeholder="Santa Cruz"></label>
                         <label data-user-field="docente">Titulo profesional<input name="titulo_profesional" placeholder="Lic. en Informatica"></label>
                         <label data-user-field="docente">Registro profesional<input name="nro_registro_profesional" placeholder="REG-001"></label>
                         <label data-user-field="docente">Estado profesional
@@ -99,6 +100,7 @@
                         <button class="primary-action" type="submit"><span>Crear usuario</span></button>
                         <button class="secondary-action" type="button" data-clear-user-form>Limpiar</button>
                     </div>
+                    <p id="usersOutput" class="module-note" role="status" aria-live="polite"></p>
                 </form>
             </article>
 

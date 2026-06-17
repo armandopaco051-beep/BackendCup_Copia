@@ -8,7 +8,8 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserHasPermission
-{
+{   
+    // pregunta 2 
     public function handle(Request $request, Closure $next, string ...$permisos): Response
     {
         $usuario = $request->user();

@@ -37,9 +37,8 @@ async function loadUsers() {
         const data = await apiRequest('/api/usuarios');
         users = data.usuarios || [];
         renderUsers(qs('#userSearch')?.value || '');
-        setMessage('#usersOutput', data);
     } catch (error) {
-        setMessage('#usersOutput', error.data || error.message);
+        setMessage('#usersOutput', userErrorMessage(error));
     }
 }
 
@@ -109,13 +108,19 @@ async function saveUser(event) {
     const values = formData(form);
     const button = form.querySelector('button[type="submit"]');
     const isEditing = values.form_mode === 'edit';
+    const accountType = values.tipo === 'coordinador' ? 'administrativo' : values.tipo;
+    const roleName = {
+        administrativo: 'administrador',
+        coordinador: 'coordinador',
+        docente: 'docente',
+    }[values.tipo];
 
-    if (values.tipo === 'postulante') {
+    if (accountType === 'postulante') {
         setMessage('#usersOutput', 'Para crear postulantes usa CU-06 Preinscripcion, porque requiere datos academicos completos.');
         return;
     }
 
-    const profile = values.tipo === 'docente'
+    const profile = accountType === 'docente'
         ? cleanPayload({
             nombre: values.nombre,
             correo: values.correo,
@@ -147,16 +152,18 @@ async function saveUser(event) {
                     username: values.username,
                     password: values.password,
                 } : {}),
-                tipo: values.tipo,
+                tipo: accountType,
+                rol_nombre: roleName,
                 perfil: profile,
             }),
         });
 
         resetUserForm();
         setMessage('#usersOutput', data);
-        loadUsers();
+        await loadUsers();
+        qs('.users-list-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
-        setMessage('#usersOutput', error.data || error.message);
+        setMessage('#usersOutput', userErrorMessage(error));
     } finally {
         setButtonLoading(button, false);
     }
@@ -174,7 +181,9 @@ function fillUserForm(username) {
     form.elements.form_mode.value = 'edit';
     form.elements.username.value = user.username;
     form.elements.username.readOnly = true;
-    form.elements.tipo.value = user.tipo;
+    form.elements.tipo.value = user.rol?.nombre === 'coordinador'
+        ? 'coordinador'
+        : user.tipo;
     form.elements.nombre.value = profile.nombre || '';
     form.elements.correo.value = profile.correo || user.correo || '';
     form.elements.telefono.value = profile.telefono || '';
@@ -275,6 +284,16 @@ function setUserSubmitText(text) {
     }
 }
 
+function userErrorMessage(error) {
+    const errors = error?.data?.errors;
+
+    if (errors && typeof errors === 'object') {
+        return Object.values(errors).flat().join(' ');
+    }
+
+    return error?.data?.message || error?.message || 'No se pudo completar la operacion.';
+}
+
 async function assignRole(event) {
     event.preventDefault();
 
@@ -294,7 +313,7 @@ async function assignRole(event) {
         setMessage('#usersOutput', data);
         loadUsers();
     } catch (error) {
-        setMessage('#usersOutput', error.data || error.message);
+        setMessage('#usersOutput', userErrorMessage(error));
     }
 }
 

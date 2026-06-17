@@ -51,6 +51,7 @@ class PreinscripcionController extends Controller
             'preinscripciones' => $preinscripciones,
         ]);
     }
+    // se encarga mayormente 
 
     public function store(Request $request): JsonResponse
     {

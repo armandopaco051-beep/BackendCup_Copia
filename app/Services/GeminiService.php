@@ -68,6 +68,9 @@ class GeminiService
         $grupos = collect($catalogos['grupos'])
             ->map(fn (array $grupo): string => $grupo['codigo'])
             ->join(', ');
+        $docentes = collect($catalogos['docentes'] ?? [])
+            ->map(fn (array $docente): string => "{$docente['username']} = {$docente['nombre']}")
+            ->join(', ');
 
         return <<<PROMPT
 Eres el interprete de comandos de reportes del sistema CUP UAGRM.
@@ -90,6 +93,7 @@ Formatos: pantalla, pdf, excel.
 Periodos disponibles: {$periodos}.
 Carreras disponibles: {$carreras}.
 Grupos disponibles: {$grupos}.
+Docentes disponibles: {$docentes}.
 
 Estados por tipo:
 - postulantes: pendiente, pagado, validado, habilitado, admitido, rechazado.
@@ -103,6 +107,7 @@ Estados por tipo:
 
 Reglas:
 - Usa el ID exacto del periodo, el codigo exacto de carrera y el codigo exacto del grupo.
+- Si el usuario menciona un docente o profesor, usa el username exacto en el filtro docente.
 - Si el usuario pide "mostrar", "consultar" o no indica descarga, formato = pantalla.
 - Si pide PDF o Excel, accion = exportar y usa ese formato.
 - "Este mes" significa desde el primer dia hasta el ultimo dia del mes actual.
@@ -148,6 +153,7 @@ PROMPT;
                         'fecha_inicio' => ['type' => 'string'],
                         'fecha_fin' => ['type' => 'string'],
                         'grupo' => ['type' => 'string'],
+                        'docente' => ['type' => 'string'],
                     ],
                 ],
             ],

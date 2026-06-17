@@ -18,7 +18,9 @@ class PostulanteGrupoController extends Controller
 {
     public function index(): JsonResponse
     {
+        $periodo = $this->periodoActual();
         $inscripciones = PostulanteGrupo::where('estado', 'inscrito')
+            ->when($periodo, fn ($query) => $query->where('id_periodo_academico', $periodo->id))
             ->get()
             ->map(fn (PostulanteGrupo $inscripcion): array => $this->formatInscripcion($inscripcion))
             ->sortBy([
@@ -29,12 +31,13 @@ class PostulanteGrupoController extends Controller
 
         return response()->json([
             'caso_uso' => 'Asignar estudiantes a grupos',
-            'grupos' => $this->gruposConCupos(),
-            'postulantes_disponibles' => $this->postulantesDisponibles(),
+            'periodo' => $periodo,
+            'grupos' => $this->gruposConCupos($periodo?->id),
+            'postulantes_disponibles' => $this->postulantesDisponibles($periodo?->id),
             'inscripciones' => $inscripciones,
         ]);
     }
-
+// hace la inscripcion de un postulante a un grupo
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -50,7 +53,7 @@ class PostulanteGrupoController extends Controller
             'inscripcion' => $this->formatInscripcion($inscripcion),
         ], 201);
     }
-
+// elimina la inscripcion de un postulante de un grupo
     public function destroy(string $username, string $grupo): JsonResponse
     {
         $inscripcion = PostulanteGrupo::where('username_postulante', $username)
@@ -67,6 +70,7 @@ class PostulanteGrupoController extends Controller
         ]);
     }
 
+// devuelve los grupos disponibles para un postulante
     public function disponiblesPostulante(): JsonResponse
     {
         $usuario = Auth::user();
@@ -78,13 +82,18 @@ class PostulanteGrupoController extends Controller
         $actual = PostulanteGrupo::where('username_postulante', $usuario->username)
             ->where('estado', 'inscrito')
             ->first();
+        $postulante = Postulante::where('username_postulante', $usuario->username)->first();
+        $periodoId = $postulante?->id_periodo_academico;
 
         return response()->json([
             'inscripcion_actual' => $actual ? $this->formatInscripcion($actual) : null,
-            'grupos' => $this->gruposConCupos()->filter(fn (array $grupo): bool => $grupo['cupos_disponibles'] > 0)->values(),
+            'grupos' => $this->gruposConCupos($periodoId)
+                ->filter(fn (array $grupo): bool => $grupo['cupos_disponibles'] > 0)
+                ->values(),
         ]);
     }
 
+// inscribe un postulante a un grupo
     public function inscribirPostulante(Request $request): JsonResponse
     {
         $usuario = Auth::user();
@@ -105,6 +114,7 @@ class PostulanteGrupoController extends Controller
         ], 201);
     }
 
+// inscribe un postulante a un grupo
     private function inscribir(string $username, string $codigoGrupo): PostulanteGrupo
     {
         $postulante = Postulante::where('username_postulante', $username)->firstOrFail();
@@ -114,6 +124,19 @@ class PostulanteGrupoController extends Controller
         if (! in_array($postulante->estado, ['habilitado', 'admitido'], true)) {
             throw ValidationException::withMessages([
                 'username_postulante' => ['El postulante debe estar habilitado para inscribirse a un grupo.'],
+            ]);
+        }
+
+        if ((int) $postulante->id_periodo_academico !== (int) $periodoId) {
+            throw ValidationException::withMessages([
+                'id_grupo' => ['El postulante y el grupo pertenecen a periodos academicos diferentes.'],
+            ]);
+        }
+
+        $periodo = PeriodoAcademico::find($periodoId);
+        if (! $periodo || $periodo->estado !== 'activo') {
+            throw ValidationException::withMessages([
+                'id_grupo' => ['Solo se permiten inscripciones en el periodo academico activo.'],
             ]);
         }
 
@@ -176,8 +199,8 @@ class PostulanteGrupoController extends Controller
             ->where('id_grupo', $codigoGrupo)
             ->firstOrFail();
     }
-
-    private function gruposConCupos(): Collection
+    // devuelve los grupos con cupos disponibles
+    private function gruposConCupos(?int $periodoId): Collection
     {
         $ocupaciones = DB::table('academico.postulante_grupo')
             ->where('estado', 'inscrito')
@@ -187,6 +210,7 @@ class PostulanteGrupoController extends Controller
             ->map(fn ($total): int => (int) $total);
 
         return Grupo::orderBy('codigo')
+            ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
             ->get()
             ->map(function (Grupo $grupo) use ($ocupaciones): array {
                 $cupoMaximo = (int) ($grupo->cupo_maximo ?? 70);
@@ -211,7 +235,8 @@ class PostulanteGrupoController extends Controller
             ->values();
     }
 
-    private function postulantesDisponibles(): Collection
+    // devuelve los postulantes disponibles para inscribir
+    private function postulantesDisponibles(?int $periodoId): Collection
     {
         $inscritos = DB::table('academico.postulante_grupo')
             ->where('estado', 'inscrito')
@@ -219,6 +244,7 @@ class PostulanteGrupoController extends Controller
             ->all();
 
         return Postulante::whereIn('estado', ['habilitado', 'admitido'])
+            ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
             ->whereNotIn('username_postulante', $inscritos)
             ->orderBy('nombre')
             ->get(['username_postulante', 'ci', 'nombre', 'estado'])
@@ -231,6 +257,7 @@ class PostulanteGrupoController extends Controller
             ->values();
     }
 
+    // formatea la inscripcion para la respuesta
     private function formatInscripcion(PostulanteGrupo $inscripcion): array
     {
         $postulante = Postulante::where('username_postulante', $inscripcion->username_postulante)->first();
@@ -255,6 +282,7 @@ class PostulanteGrupoController extends Controller
         ];
     }
 
+    // devuelve la ocupacion de un grupo
     private function ocupacionGrupo(string $codigoGrupo): int
     {
         return PostulanteGrupo::where('id_grupo', $codigoGrupo)
@@ -264,6 +292,6 @@ class PostulanteGrupoController extends Controller
 
     private function periodoActual(): ?PeriodoAcademico
     {
-        return PeriodoAcademico::orderByDesc('id')->first();
+        return PeriodoAcademico::where('estado', 'activo')->orderByDesc('id')->first();
     }
 }

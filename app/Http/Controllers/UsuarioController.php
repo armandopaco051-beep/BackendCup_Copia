@@ -336,7 +336,7 @@ class UsuarioController extends Controller
 
         return $perfil;
     }
-
+    // valida el perfil profesional del docente de la pregunta 3 
     private function validarPerfilProfesionalDocente(array $perfil): void
     {
         if (($perfil['estado_profesional'] ?? null) === 'habilitado' && blank($perfil['titulo_profesional'] ?? null)) {

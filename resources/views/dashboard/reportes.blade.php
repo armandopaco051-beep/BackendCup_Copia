@@ -1,8 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Reportes administrativos | FICCT')
+@section('title', 'Reportes | FICCT')
 
 @section('content')
+@php
+    $usuarioActual = auth()->user();
+    $puedeExportarPdf = $usuarioActual?->tienePermiso('exportar_pdf') ?? false;
+    $puedeExportarExcel = $usuarioActual?->tienePermiso('exportar_excel') ?? false;
+@endphp
 <main class="portal-shell" data-page="reportes">
     @include('dashboard.partials.sidebar', ['active' => 'reportes'])
 
@@ -113,6 +118,11 @@
                             <option value="">Todos los grupos</option>
                         </select>
                     </label>
+                    <label>Docente
+                        <select name="docente">
+                            <option value="">Todos los docentes</option>
+                        </select>
+                    </label>
                     <label data-report-date>Fecha inicial
                         <input name="fecha_inicio" type="date">
                     </label>
@@ -168,8 +178,12 @@
                     <p id="reportCount">Sin datos cargados</p>
                 </div>
                 <div class="report-export-actions">
-                    <button class="secondary-action" type="button" data-export-report="pdf">Descargar PDF</button>
-                    <button class="primary-action" type="button" data-export-report="excel">Descargar Excel (.xlsx)</button>
+                    @if ($puedeExportarPdf)
+                        <button class="secondary-action" type="button" data-export-report="pdf">Descargar PDF</button>
+                    @endif
+                    @if ($puedeExportarExcel)
+                        <button class="primary-action" type="button" data-export-report="excel">Descargar Excel (.xlsx)</button>
+                    @endif
                 </div>
             </div>
 

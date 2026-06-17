@@ -53,7 +53,7 @@ class DocenteHorarioController extends Controller
             'horario' => $this->formatHorario($horarioGrupo->fresh()),
         ]);
     }
-
+    // valida docente de la pregunta 3 
     private function validarDocentePuedeDictarMateria(string $usernameDocente, string $idMateria): void
     {
         $exists = DB::table('academico.docente_materia')

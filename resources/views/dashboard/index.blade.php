@@ -153,16 +153,18 @@
                         <path d="M7 7h10v10"></path>
                     </svg>
                 </a>
-                <a href="/dashboard/usuarios">
-                    <span>
-                        <strong>Gestionar usuarios</strong>
-                        <small>Cuentas, perfiles y roles</small>
-                    </span>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M7 17 17 7"></path>
-                        <path d="M7 7h10v10"></path>
-                    </svg>
-                </a>
+                @if (auth()->user()?->tienePermiso('listar_usuario'))
+                    <a href="/dashboard/usuarios">
+                        <span>
+                            <strong>Gestionar usuarios</strong>
+                            <small>Cuentas, perfiles y roles</small>
+                        </span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M7 17 17 7"></path>
+                            <path d="M7 7h10v10"></path>
+                        </svg>
+                    </a>
+                @endif
                 <a href="/dashboard/pagos">
                     <span>
                         <strong>Registrar pagos</strong>

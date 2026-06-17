@@ -5,6 +5,7 @@ import {
     formData,
     numberFormat,
     qs,
+    qsa,
     setButtonLoading,
     statusClass,
     validateForm,
@@ -17,8 +18,12 @@ export async function initDistribucionGrupos() {
         return;
     }
 
-    qs('[data-calculate-groups]')?.addEventListener('click', calculateGroups);
-    qs('[data-generate-groups]')?.addEventListener('click', generateGroups);
+    qsa('[data-calculate-groups]').forEach((button) => {
+        button.addEventListener('click', calculateGroups);
+    });
+    qsa('[data-generate-groups]').forEach((button) => {
+        button.addEventListener('click', generateGroups);
+    });
     qs('#distributionPeriodSelect')?.addEventListener('change', loadExistingDistribution);
     qs('#distributionEditForm')?.addEventListener('submit', updateGroup);
     qs('[data-cancel-group-edit]')?.addEventListener('click', closeGroupEditor);
@@ -56,6 +61,10 @@ async function loadDistributionPeriods() {
                 </option>
             `).join('')
             : '<option value="">No hay periodos registrados</option>';
+        const activePeriod = periods.find((period) => period.estado === 'activo');
+        if (activePeriod) {
+            select.value = String(activePeriod.id);
+        }
         select.disabled = !periods.length;
     } catch (error) {
         select.innerHTML = '<option value="">No se pudieron cargar los periodos</option>';
@@ -107,14 +116,14 @@ async function loadExistingDistribution() {
     }
 }
 
-async function calculateGroups() {
+async function calculateGroups(event) {
     const form = qs('#distributionForm');
 
     if (form && !validateForm(form)) {
         return;
     }
 
-    const button = qs('[data-calculate-groups]');
+    const button = event?.currentTarget || qs('[data-calculate-groups]');
     const params = new URLSearchParams();
     Object.entries(distributionPayload()).forEach(([key, value]) => params.set(key, value));
     setButtonLoading(button, true, 'Calculando...');
@@ -132,14 +141,14 @@ async function calculateGroups() {
     }
 }
 
-async function generateGroups() {
+async function generateGroups(event) {
     const form = qs('#distributionForm');
 
     if (form && !validateForm(form)) {
         return;
     }
 
-    const button = qs('[data-generate-groups]');
+    const button = event?.currentTarget || qs('[data-generate-groups]');
     setButtonLoading(button, true, 'Generando...');
 
     try {

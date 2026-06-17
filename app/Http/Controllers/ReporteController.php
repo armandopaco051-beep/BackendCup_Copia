@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Bitacora;
 use App\Models\Carrera;
+use App\Models\Docente;
 use App\Models\Grupo;
 use App\Models\PeriodoAcademico;
 use App\Services\ReporteExcelService;
@@ -61,6 +62,13 @@ class ReporteController extends Controller
                     'codigo' => $grupo->codigo,
                     'turno' => $grupo->turno,
                     'periodo' => $grupo->id_periodo_academico,
+                ])
+                ->values(),
+            'docentes' => Docente::orderBy('nombre')
+                ->get(['username_docente', 'nombre'])
+                ->map(fn (Docente $docente): array => [
+                    'username' => $docente->username_docente,
+                    'nombre' => $docente->nombre.' ('.$docente->username_docente.')',
                 ])
                 ->values(),
             'estados' => [
@@ -148,6 +156,7 @@ class ReporteController extends Controller
             'fecha_inicio' => ['nullable', 'date'],
             'fecha_fin' => ['nullable', 'date'],
             'grupo' => ['nullable', 'string', 'max:100'],
+            'docente' => ['nullable', 'string', 'max:500'],
             'limite' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 

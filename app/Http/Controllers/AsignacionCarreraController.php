@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AsignacionCarrera;
 use App\Models\Carrera;
+use App\Models\PeriodoAcademico;
 use App\Models\Postulante;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,15 +18,18 @@ class AsignacionCarreraController extends Controller
 
     public function index(): JsonResponse
     {
+        $periodo = $this->periodoActivo();
         $asignaciones = AsignacionCarrera::orderByDesc('promedio_final')
             ->orderByDesc('nota3_promedio')
             ->orderByDesc('nota2_promedio')
             ->orderByDesc('nota1_promedio')
+            ->when($periodo, fn ($query) => $query->where('id_periodo_academico', $periodo->id))
             ->get();
 
         return response()->json([
             'caso_uso' => 'Asignar carrera segun cupo',
             'regla' => 'Promedio final >= 60.00, prioridad por promedio exacto y cupo disponible.',
+            'periodo' => $periodo,
             'resumen' => $this->resumenCupos($asignaciones),
             'asignaciones' => $asignaciones
                 ->map(fn (AsignacionCarrera $asignacion): array => $this->formatAsignacion($asignacion))
@@ -38,25 +42,32 @@ class AsignacionCarreraController extends Controller
         $validated = $request->validate([
             'sobrescribir' => ['nullable', 'boolean'],
         ]);
+        $periodo = $this->periodoActivo();
 
-        $existentes = AsignacionCarrera::exists();
+        if (! $periodo) {
+            throw ValidationException::withMessages([
+                'periodo' => 'No existe un periodo academico activo para generar la lista de admitidos.',
+            ]);
+        }
+
+        $existentes = AsignacionCarrera::where('id_periodo_academico', $periodo->id)->exists();
         if ($existentes && ! ($validated['sobrescribir'] ?? false)) {
             throw ValidationException::withMessages([
-                'asignaciones' => 'Ya existe una asignacion generada. Marca sobrescribir para recalcularla.',
+                'asignaciones' => 'Ya existe una asignacion generada para el periodo activo. Marca sobrescribir para recalcularla.',
             ]);
         }
 
         $carreras = Carrera::where('estado', 'habilitada')->orderBy('nombre')->get()->keyBy('codigo');
-        $postulantes = $this->postulantesConPromedio();
+        $postulantes = $this->postulantesConPromedio($periodo->id);
 
         if ($postulantes->isEmpty()) {
             throw ValidationException::withMessages([
-                'calificaciones' => 'No hay postulantes habilitados con calificaciones registradas.',
+                'calificaciones' => 'No hay postulantes habilitados con calificaciones registradas en el periodo activo.',
             ]);
         }
 
-        $resultado = DB::transaction(function () use ($postulantes, $carreras): Collection {
-            AsignacionCarrera::query()->delete();
+        $resultado = DB::transaction(function () use ($postulantes, $carreras, $periodo): Collection {
+            AsignacionCarrera::where('id_periodo_academico', $periodo->id)->delete();
 
             $ocupacion = Carrera::where('estado', 'habilitada')
                 ->pluck('cupo_maximo', 'codigo')
@@ -75,6 +86,7 @@ class AsignacionCarreraController extends Controller
 
                     $payload = [
                         'username_postulante' => $postulante->username_postulante,
+                        'id_periodo_academico' => $postulante->id_periodo_academico,
                         'primera_opcion' => $primera,
                         'segunda_opcion' => $segunda,
                         'promedio_final' => $promedio,
@@ -136,9 +148,11 @@ class AsignacionCarreraController extends Controller
                 ->pluck('username_postulante');
 
             Postulante::whereIn('username_postulante', $evaluados)
+                ->where('id_periodo_academico', $periodo->id)
                 ->where('estado', 'admitido')
                 ->update(['estado' => 'habilitado']);
             Postulante::whereIn('username_postulante', $admitidos)
+                ->where('id_periodo_academico', $periodo->id)
                 ->update(['estado' => 'admitido']);
 
             return $asignaciones;
@@ -147,6 +161,7 @@ class AsignacionCarreraController extends Controller
         return response()->json([
             'caso_uso' => 'Asignar carrera segun cupo',
             'message' => 'Asignacion de carreras generada correctamente.',
+            'periodo' => $periodo,
             'nota_minima' => self::NOTA_MINIMA,
             'resumen' => $this->resumenCupos($resultado),
             'asignaciones' => $resultado
@@ -155,25 +170,33 @@ class AsignacionCarreraController extends Controller
         ], 201);
     }
 
-    private function postulantesConPromedio(): Collection
+    private function postulantesConPromedio(int $periodoId): Collection
     {
-        $promedios = DB::table('academico.acta_nota')
+        $promedios = DB::table('academico.acta_nota as nota')
+            ->join('academico.postulante_grupo as inscripcion', function ($join) use ($periodoId): void {
+                $join->on('inscripcion.username_postulante', '=', 'nota.username_postulante')
+                    ->on('inscripcion.id_grupo', '=', 'nota.id_grupo')
+                    ->where('inscripcion.id_periodo_academico', $periodoId)
+                    ->where('inscripcion.estado', 'inscrito');
+            })
             ->select(
-                'username_postulante',
-                DB::raw('ROUND(AVG(promedio)::numeric, 2) as promedio_final'),
-                DB::raw('ROUND(AVG(nota3)::numeric, 2) as nota3_promedio'),
-                DB::raw('ROUND(AVG(nota2)::numeric, 2) as nota2_promedio'),
-                DB::raw('ROUND(AVG(nota1)::numeric, 2) as nota1_promedio')
+                'nota.username_postulante',
+                DB::raw('ROUND(AVG(nota.promedio)::numeric, 2) as promedio_final'),
+                DB::raw('ROUND(AVG(nota.nota3)::numeric, 2) as nota3_promedio'),
+                DB::raw('ROUND(AVG(nota.nota2)::numeric, 2) as nota2_promedio'),
+                DB::raw('ROUND(AVG(nota.nota1)::numeric, 2) as nota1_promedio')
             )
-            ->groupBy('username_postulante');
+            ->groupBy('nota.username_postulante');
 
         return DB::table('academico.postulante as postulante')
             ->joinSub($promedios, 'promedios', function ($join): void {
                 $join->on('promedios.username_postulante', '=', 'postulante.username_postulante');
             })
             ->whereIn('postulante.estado', ['habilitado', 'admitido'])
+            ->where('postulante.id_periodo_academico', $periodoId)
             ->select(
                 'postulante.username_postulante',
+                'postulante.id_periodo_academico',
                 'postulante.ci',
                 'postulante.nombre',
                 'postulante.estado',
@@ -248,6 +271,7 @@ class AsignacionCarreraController extends Controller
 
         return [
             'id' => $asignacion->id,
+            'id_periodo_academico' => $asignacion->id_periodo_academico,
             'postulante' => [
                 'username' => $asignacion->username_postulante,
                 'nombre' => $postulante?->nombre ?? $asignacion->username_postulante,
@@ -276,5 +300,10 @@ class AsignacionCarreraController extends Controller
             'codigo' => $codigo,
             'nombre' => $carreras[$codigo]->nombre ?? $codigo,
         ];
+    }
+
+    private function periodoActivo(): ?PeriodoAcademico
+    {
+        return PeriodoAcademico::where('estado', 'activo')->orderByDesc('id')->first();
     }
 }

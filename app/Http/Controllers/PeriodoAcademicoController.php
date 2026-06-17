@@ -40,7 +40,12 @@ class PeriodoAcademicoController extends Controller
         $columns = $this->columns();
         $validated = $this->validatePeriodo($request, $columns);
 
-        $periodo = PeriodoAcademico::create($this->payload($validated, $columns));
+        $payload = $this->payload($validated, $columns);
+        $periodo = DB::transaction(function () use ($payload): PeriodoAcademico {
+            $this->cerrarOtrosPeriodosActivos($payload);
+
+            return PeriodoAcademico::create($payload);
+        });
 
         return response()->json([
             'message' => 'Periodo academico creado correctamente.',
@@ -64,7 +69,11 @@ class PeriodoAcademicoController extends Controller
         $columns = $this->columns();
         $validated = $this->validatePeriodo($request, $columns, true);
 
-        $periodoAcademico->update($this->payload($validated, $columns));
+        $payload = $this->payload($validated, $columns);
+        DB::transaction(function () use ($periodoAcademico, $payload): void {
+            $this->cerrarOtrosPeriodosActivos($payload, $periodoAcademico->id);
+            $periodoAcademico->update($payload);
+        });
 
         return response()->json([
             'message' => 'Periodo academico actualizado correctamente.',
@@ -157,6 +166,17 @@ class PeriodoAcademicoController extends Controller
         }
 
         return $payload;
+    }
+
+    private function cerrarOtrosPeriodosActivos(array $payload, ?int $exceptoId = null): void
+    {
+        if (($payload['estado'] ?? null) !== 'activo') {
+            return;
+        }
+
+        PeriodoAcademico::where('estado', 'activo')
+            ->when($exceptoId, fn ($query) => $query->where('id', '!=', $exceptoId))
+            ->update(['estado' => 'cerrado']);
     }
 
     private function columns(): array

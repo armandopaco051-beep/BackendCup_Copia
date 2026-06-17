@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\CredencialesPostulanteMail;
 use App\Models\Carrera;
 use App\Models\Pago;
+use App\Models\PeriodoAcademico;
 use App\Models\Postulante;
 use App\Models\PostulanteCarrera;
 use App\Models\RequisitoPostulante;
@@ -25,10 +26,14 @@ use Throwable;
  */
 class HabilitacionPostulanteController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        $periodoId = $request->integer('periodo_id')
+            ?: PeriodoAcademico::where('estado', 'activo')->orderByDesc('id')->value('id');
+
         $candidatos = Postulante::orderBy('nombre')
             ->where('estado', '!=', 'pendiente_pago')
+            ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
             ->get()
             ->map(fn (Postulante $postulante): array => $this->formatearCandidato($postulante))
             ->values();

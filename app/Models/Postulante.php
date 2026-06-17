@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasPostgresSchema;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Postulante extends Model
 {
@@ -38,5 +39,11 @@ class Postulante extends Model
         'genero',
         'cod_titulo_bachiller',
         'estado',
+        'id_periodo_academico',
     ];
+
+    public function periodoAcademico(): BelongsTo
+    {
+        return $this->belongsTo(PeriodoAcademico::class, 'id_periodo_academico');
+    }
 }

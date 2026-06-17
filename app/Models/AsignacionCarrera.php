@@ -17,6 +17,7 @@ class AsignacionCarrera extends Model
 
     protected $fillable = [
         'username_postulante',
+        'id_periodo_academico',
         'id_carrera',
         'primera_opcion',
         'segunda_opcion',
@@ -32,6 +33,7 @@ class AsignacionCarrera extends Model
 
     protected $casts = [
         'promedio_final' => 'float',
+        'id_periodo_academico' => 'integer',
         'nota3_promedio' => 'float',
         'nota2_promedio' => 'float',
         'nota1_promedio' => 'float',

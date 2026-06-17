@@ -38,6 +38,7 @@ async function loadOptions() {
         updateGeminiAvailability(reportOptions.gemini_configurado);
         fillSelect('periodo', reportOptions.periodos, 'id', 'nombre', 'Todos los periodos');
         fillSelect('carrera', reportOptions.carreras, 'codigo', 'nombre', 'Todas las carreras');
+        fillSelect('docente', reportOptions.docentes, 'username', 'nombre', 'Todos los docentes');
         filterGroupsByPeriod();
         updateReportFields();
         await loadReport();
@@ -383,6 +384,7 @@ function applyVoiceInterpretation(interpretation) {
     form.elements.carrera.value = filters.carrera || '';
     form.elements.estado.value = filters.estado || '';
     form.elements.grupo.value = filters.grupo || '';
+    form.elements.docente.value = filters.docente || '';
     form.elements.fecha_inicio.value = filters.fecha_inicio || '';
     form.elements.fecha_fin.value = filters.fecha_fin || '';
 }

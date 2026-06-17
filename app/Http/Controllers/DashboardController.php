@@ -36,14 +36,37 @@ class DashboardController extends Controller
             ->where('promedio_final', '<', self::NOTA_MINIMA_APROBACION)
             ->count();
 
-        $periodo = PeriodoAcademico::orderByDesc('id')->first();
+        $periodo = PeriodoAcademico::where('estado', 'activo')->orderByDesc('id')->first()
+            ?? PeriodoAcademico::orderByDesc('id')->first();
+        $periodoId = $periodo?->id;
+
+        if ($periodoId) {
+            $promedios->whereIn(
+                'username_postulante',
+                Postulante::query()
+                    ->select('username_postulante')
+                    ->where('id_periodo_academico', $periodoId),
+            );
+            $aprobados = DB::query()
+                ->fromSub(clone $promedios, 'promedios')
+                ->where('promedio_final', '>=', self::NOTA_MINIMA_APROBACION)
+                ->count();
+            $reprobados = DB::query()
+                ->fromSub(clone $promedios, 'promedios')
+                ->where('promedio_final', '<', self::NOTA_MINIMA_APROBACION)
+                ->count();
+        }
 
         return response()->json([
             'metricas' => [
-                'inscritos' => Postulante::where('estado', '!=', 'pendiente_pago')->count(),
+                'inscritos' => Postulante::where('estado', '!=', 'pendiente_pago')
+                    ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
+                    ->count(),
                 'aprobados' => $aprobados,
                 'reprobados' => $reprobados,
-                'grupos_habilitados' => Grupo::where('estado', 'activo')->count(),
+                'grupos_habilitados' => Grupo::where('estado', 'activo')
+                    ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
+                    ->count(),
             ],
             'criterios' => [
                 'nota_minima_aprobacion' => self::NOTA_MINIMA_APROBACION,
@@ -56,14 +79,15 @@ class DashboardController extends Controller
                 'nombre' => $periodo->nombre
                     ?: 'Periodo '.($periodo->semestre ?? '').'-'.($periodo->{'año'} ?? $periodo->anio ?? ''),
             ] : null,
-            'preinscripciones_recientes' => $this->preinscripcionesRecientes(),
+            'preinscripciones_recientes' => $this->preinscripcionesRecientes($periodoId),
         ]);
     }
 
-    private function preinscripcionesRecientes(): array
+    private function preinscripcionesRecientes(?int $periodoId): array
     {
         return Postulante::orderByDesc('username_postulante')
             ->where('estado', '!=', 'pendiente_pago')
+            ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
             ->limit(4)
             ->get()
             ->map(fn (Postulante $postulante): array => $this->formatearPostulante($postulante))

@@ -54,7 +54,7 @@ class AsistenciaController extends Controller
             'postulantes' => $this->postulantesPorGrupos($codigosGrupos),
         ]);
     }
-
+// quiere decir esta funcion guarda asistencias en lote
     public function storeLote(Request $request): JsonResponse
     {
         $validated = $request->validate([

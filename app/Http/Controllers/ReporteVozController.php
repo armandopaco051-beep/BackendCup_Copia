@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Bitacora;
 use App\Models\Carrera;
+use App\Models\Docente;
 use App\Models\Grupo;
 use App\Models\PeriodoAcademico;
 use App\Services\GeminiService;
@@ -76,6 +77,7 @@ class ReporteVozController extends Controller
             'filtros.fecha_inicio' => ['nullable', 'date_format:Y-m-d'],
             'filtros.fecha_fin' => ['nullable', 'date_format:Y-m-d'],
             'filtros.grupo' => ['nullable', 'string', 'max:100'],
+            'filtros.docente' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($validator->fails()) {
@@ -93,6 +95,7 @@ class ReporteVozController extends Controller
         $this->validarCatalogo($filtros, 'periodo', collect($catalogos['periodos'])->pluck('id')->all());
         $this->validarCatalogo($filtros, 'carrera', collect($catalogos['carreras'])->pluck('codigo')->all());
         $this->validarCatalogo($filtros, 'grupo', collect($catalogos['grupos'])->pluck('codigo')->all());
+        $this->validarCatalogo($filtros, 'docente', collect($catalogos['docentes'])->pluck('username')->all());
 
         $estados = $catalogos['estados'][$data['tipo']] ?? [];
         $this->validarCatalogo($filtros, 'estado', $estados);
@@ -148,6 +151,14 @@ class ReporteVozController extends Controller
             'grupos' => Grupo::orderBy('codigo')
                 ->get(['codigo'])
                 ->map(fn (Grupo $grupo): array => ['codigo' => $grupo->codigo])
+                ->values()
+                ->all(),
+            'docentes' => Docente::orderBy('nombre')
+                ->get(['username_docente', 'nombre'])
+                ->map(fn (Docente $docente): array => [
+                    'username' => $docente->username_docente,
+                    'nombre' => $docente->nombre,
+                ])
                 ->values()
                 ->all(),
             'estados' => [

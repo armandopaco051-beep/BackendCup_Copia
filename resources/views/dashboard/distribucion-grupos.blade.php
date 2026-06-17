@@ -71,6 +71,14 @@
                     </div>
                 </div>
                 <p id="distributionNotice">Selecciona un periodo para consultar su distribucion guardada.</p>
+                <div class="distribution-summary-actions">
+                    <button class="secondary-action" type="button" data-calculate-groups>
+                        Calcular ampliacion
+                    </button>
+                    <button class="primary-action" type="button" data-generate-groups>
+                        Generar grupos faltantes
+                    </button>
+                </div>
             </aside>
         </section>
 

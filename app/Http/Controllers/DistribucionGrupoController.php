@@ -37,7 +37,7 @@ class DistribucionGrupoController extends Controller
         return response()->json([
             'caso_uso' => 'CU-13 Consultar distribucion de grupos',
             'periodo' => $this->formatPeriodo($periodo),
-            'total_postulantes' => $this->totalPostulantes(),
+            'total_postulantes' => $this->totalPostulantes($periodo),
             'grupos' => $grupos->map(fn (Grupo $grupo): array => $this->formatGrupo($grupo))->values(),
             'resumen' => $this->resumenDistribucion($grupos),
         ]);
@@ -52,7 +52,7 @@ class DistribucionGrupoController extends Controller
 
         $periodo = $this->periodo($validated['periodo_id'] ?? null);
         $cupoMaximo = $validated['cupo_maximo'] ?? self::CUPO_MAXIMO;
-        $totalPostulantes = $this->totalPostulantes();
+        $totalPostulantes = $this->totalPostulantes($periodo);
         $gruposExistentes = $this->gruposPeriodo($periodo);
         $capacidadExistente = $this->capacidadActiva($gruposExistentes);
         $postulantesSinCupo = max($totalPostulantes - $capacidadExistente, 0);
@@ -93,7 +93,7 @@ class DistribucionGrupoController extends Controller
 
         $periodo = $this->periodo($validated['periodo_id'] ?? null);
         $cupoMaximo = $validated['cupo_maximo'] ?? self::CUPO_MAXIMO;
-        $totalPostulantes = $this->totalPostulantes();
+        $totalPostulantes = $this->totalPostulantes($periodo);
         $gruposExistentes = $this->gruposPeriodo($periodo);
         $capacidadExistente = $this->capacidadActiva($gruposExistentes);
         $postulantesSinCupo = max($totalPostulantes - $capacidadExistente, 0);
@@ -169,9 +169,15 @@ class DistribucionGrupoController extends Controller
         ]);
     }
 
-    private function totalPostulantes(): int
+    private function totalPostulantes(?PeriodoAcademico $periodo): int
     {
-        return Postulante::whereIn('estado', ['habilitado', 'admitido'])->count();
+        return Postulante::whereIn('estado', ['habilitado', 'admitido'])
+            ->when(
+                $periodo,
+                fn ($query) => $query->where('id_periodo_academico', $periodo->id),
+                fn ($query) => $query->whereNull('id_periodo_academico'),
+            )
+            ->count();
     }
 
     private function cantidadGrupos(int $totalPostulantes, int $cupoMaximo): int
@@ -309,7 +315,8 @@ class DistribucionGrupoController extends Controller
             return PeriodoAcademico::find($periodoId);
         }
 
-        return PeriodoAcademico::orderByDesc('id')->first();
+        return PeriodoAcademico::where('estado', 'activo')->orderByDesc('id')->first()
+            ?? PeriodoAcademico::orderByDesc('id')->first();
     }
 
     private function periodoCerrado(?PeriodoAcademico $periodo): bool

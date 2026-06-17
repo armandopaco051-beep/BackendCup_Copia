@@ -27,7 +27,9 @@ class PostulantePanelController extends Controller
         $inscripcion = PostulanteGrupo::where('username_postulante', $usuario->username)
             ->where('estado', 'inscrito')
             ->first();
-        $asignacionCarrera = AsignacionCarrera::where('username_postulante', $usuario->username)->first();
+        $asignacionCarrera = AsignacionCarrera::where('username_postulante', $usuario->username)
+            ->when($postulante->id_periodo_academico, fn ($query) => $query->where('id_periodo_academico', $postulante->id_periodo_academico))
+            ->first();
 
         return response()->json([
             'postulante' => $this->postulante($postulante),

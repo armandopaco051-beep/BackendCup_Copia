@@ -32,7 +32,8 @@ class AulaController extends Controller
     public function cupos(): JsonResponse
     {
         $columns = $this->columns();
-        $ocupaciones = $this->ocupacionesPorAula();
+        $periodo = $this->periodoActivo();
+        $ocupaciones = $this->ocupacionesPorAula($periodo?->id);
 
         $aulas = Aula::orderBy('nro_aula')
             ->get()
@@ -54,13 +55,17 @@ class AulaController extends Controller
 
         return response()->json([
             'caso_uso' => 'Validar cupos por aula',
-            'descripcion' => 'Valida la capacidad y ocupacion de cada aula segun horarios registrados.',
+            'descripcion' => 'Valida la capacidad y ocupacion de cada aula segun el periodo academico activo.',
+            'periodo' => $periodo,
             'aulas' => $aulas,
             'resumen' => [
                 'total_aulas' => $aulas->count(),
+                'capacidad_total' => $aulas->sum('capacidad'),
+                'ocupacion_total' => $aulas->sum('ocupacion'),
                 'disponibles' => $aulas->where('estado_cupo', 'disponible')->count(),
                 'casi_llenas' => $aulas->where('estado_cupo', 'casi_lleno')->count(),
                 'sin_cupo' => $aulas->where('estado_cupo', 'sin_cupo')->count(),
+                'periodo' => $periodo?->nombre,
             ],
         ]);
     }
@@ -163,18 +168,39 @@ class AulaController extends Controller
             ->all();
     }
 
-    private function ocupacionesPorAula(): array
+    private function ocupacionesPorAula(?int $periodoId): array
     {
         if ($this->tableExists('horario_grupo')) {
             $asignaciones = DB::table('academico.horario_grupo')
                 ->select('id_aula', 'id_grupo')
                 ->whereIn('estado', ['propuesto', 'confirmado'])
+                ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
                 ->distinct();
+
+            if ($this->tableExists('postulante_grupo')) {
+                $ocupacionGrupo = DB::table('academico.postulante_grupo')
+                    ->select('id_grupo', DB::raw('COUNT(DISTINCT username_postulante) as inscritos'))
+                    ->where('estado', 'inscrito')
+                    ->when($periodoId, fn ($query) => $query->where('id_periodo_academico', $periodoId))
+                    ->groupBy('id_grupo');
+
+                return DB::query()
+                    ->fromSub($asignaciones, 'asignaciones')
+                    ->join('academico.grupo as grupo', 'grupo.codigo', '=', 'asignaciones.id_grupo')
+                    ->leftJoinSub($ocupacionGrupo, 'ocupacion_grupo', 'ocupacion_grupo.id_grupo', '=', 'asignaciones.id_grupo')
+                    ->when($periodoId, fn ($query) => $query->where('grupo.id_periodo_academico', $periodoId))
+                    ->select('asignaciones.id_aula', DB::raw('MAX(COALESCE(ocupacion_grupo.inscritos, 0)) as ocupacion'))
+                    ->groupBy('asignaciones.id_aula')
+                    ->pluck('ocupacion', 'id_aula')
+                    ->map(fn ($ocupacion): int => (int) $ocupacion)
+                    ->all();
+            }
 
             return DB::query()
                 ->fromSub($asignaciones, 'asignaciones')
                 ->join('academico.grupo as grupo', 'grupo.codigo', '=', 'asignaciones.id_grupo')
-                ->select('asignaciones.id_aula', DB::raw('SUM(COALESCE(grupo.cupo_maximo, 70)) as ocupacion'))
+                ->when($periodoId, fn ($query) => $query->where('grupo.id_periodo_academico', $periodoId))
+                ->select('asignaciones.id_aula', DB::raw('MAX(COALESCE(grupo.cupo_maximo, 70)) as ocupacion'))
                 ->groupBy('asignaciones.id_aula')
                 ->pluck('ocupacion', 'id_aula')
                 ->map(fn ($ocupacion): int => (int) $ocupacion)
@@ -186,8 +212,10 @@ class AulaController extends Controller
         }
 
         return DB::table('academico.horario')
-            ->select('id_aula', DB::raw('COUNT(DISTINCT username_postulante) as ocupacion'))
-            ->groupBy('id_aula')
+            ->join('academico.postulante as postulante', 'postulante.username_postulante', '=', 'horario.username_postulante')
+            ->when($periodoId, fn ($query) => $query->where('postulante.id_periodo_academico', $periodoId))
+            ->select('horario.id_aula', DB::raw('COUNT(DISTINCT horario.username_postulante) as ocupacion'))
+            ->groupBy('horario.id_aula')
             ->pluck('ocupacion', 'id_aula')
             ->map(fn ($ocupacion): int => (int) $ocupacion)
             ->all();
@@ -212,5 +240,13 @@ class AulaController extends Controller
             ->where('table_schema', 'academico')
             ->where('table_name', $table)
             ->exists();
+    }
+
+    private function periodoActivo(): ?object
+    {
+        return DB::table('academico.periodo_academico')
+            ->where('estado', 'activo')
+            ->orderByDesc('id')
+            ->first();
     }
 }

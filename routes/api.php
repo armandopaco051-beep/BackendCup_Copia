@@ -357,7 +357,7 @@ Route::patch('/preinscripciones/{username}', [PreinscripcionController::class, '
 | CU-03 Gestionar usuarios y CU-05 Restablecer password
 |--------------------------------------------------------------------------
 */
-
+// middleware para auth y permisos de la pregunta 2 
 Route::middleware(['web', 'auth'])->group(function (): void {
     // GET /api/usuarios: lista cuentas y perfiles; requiere listar_usuario.
     Route::get('/usuarios', [UsuarioController::class, 'index'])
