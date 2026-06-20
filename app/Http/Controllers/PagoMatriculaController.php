@@ -99,6 +99,7 @@ class PagoMatriculaController extends Controller
         ], Response::HTTP_CREATED);
     }
 
+    // muestra el pago de matricula
     public function show(string $username): JsonResponse
     {
         Postulante::where('username_postulante', $username)->firstOrFail();
@@ -114,6 +115,7 @@ class PagoMatriculaController extends Controller
         ]);
     }
 
+    // confirma el pago de matricula
     public function confirmar(Request $request, string $username): JsonResponse
     {
         Postulante::where('username_postulante', $username)->firstOrFail();
@@ -156,6 +158,7 @@ class PagoMatriculaController extends Controller
         ]);
     }
 
+    // webhook de stripe
     public function webhook(Request $request): JsonResponse
     {
         $payload = $request->getContent();
@@ -180,6 +183,7 @@ class PagoMatriculaController extends Controller
         return response()->json(['received' => true]);
     }
 
+    // actualiza el pago de stripe
     private function actualizarPagoStripe(string $paymentIntentId, string $estado, string $observacion): void
     {
         $pago = Pago::where('nro_comprobante', $paymentIntentId)->first();
@@ -201,6 +205,7 @@ class PagoMatriculaController extends Controller
         }
     }
 
+    // obtiene la instancia de stripe
     private function stripe(): StripeClient
     {
         $secret = config('services.stripe.secret');

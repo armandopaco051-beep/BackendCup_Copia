@@ -9,7 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
-
+// mostrar esto para la preugnta 2 
 class RequisitoPostulanteController extends Controller
 {
     /**

@@ -31,14 +31,17 @@ export function initReportes() {
 
     loadOptions();
 }
-
+// carga las opciones para los filtros
 async function loadOptions() {
     try {
         reportOptions = await apiRequest('/api/reportes/opciones');
         updateGeminiAvailability(reportOptions.gemini_configurado);
-        fillSelect('periodo', reportOptions.periodos, 'id', 'nombre', 'Todos los periodos');
-        fillSelect('carrera', reportOptions.carreras, 'codigo', 'nombre', 'Todas las carreras');
-        fillSelect('docente', reportOptions.docentes, 'username', 'nombre', 'Todos los docentes');
+        fillReportTypes();
+        fillSelect('periodo', reportOptions.periodos || [], 'id', 'nombre', 'Todos los periodos');
+        fillSelect('carrera', reportOptions.carreras || [], 'codigo', 'nombre', 'Todas las carreras');
+        fillSelect('materia', reportOptions.materias || [], 'id', 'nombre', 'Todas las materias');
+        fillSelect('docente', reportOptions.docentes || [], 'username', 'nombre', 'Todos los docentes');
+        applyReportScope();
         filterGroupsByPeriod();
         updateReportFields();
         await loadReport();
@@ -47,6 +50,54 @@ async function loadOptions() {
     }
 }
 
+function fillReportTypes() {
+    const select = qs('#reportFilters')?.elements.tipo;
+    const types = Array.isArray(reportOptions.tipos) ? reportOptions.tipos : [];
+
+    if (!select) {
+        return;
+    }
+
+    if (types.length === 0) {
+        select.innerHTML = '<option value="">Sin reportes disponibles</option>';
+        select.disabled = true;
+        return;
+    }
+
+    select.disabled = false;
+    const previous = select.value;
+    select.innerHTML = types.map((type) => `
+        <option value="${escapeHtml(type.codigo)}">${escapeHtml(type.nombre)}</option>
+    `).join('');
+
+    select.value = types.some((type) => String(type.codigo) === String(previous))
+        ? previous
+        : types[0].codigo;
+}
+
+function applyReportScope() {
+    const form = qs('#reportFilters');
+    const forcedTeacher = reportOptions.alcance?.docente_forzado;
+    const teacherSelect = form?.elements.docente;
+
+    if (!teacherSelect) {
+        return;
+    }
+
+    teacherSelect.disabled = false;
+    teacherSelect.closest('label')?.classList.remove('is-disabled');
+
+    if (!forcedTeacher) {
+        return;
+    }
+
+    teacherSelect.value = forcedTeacher;
+    teacherSelect.disabled = true;
+    teacherSelect.closest('label')?.classList.add('is-disabled');
+    setMessage('#reportOutput', reportOptions.alcance.descripcion);
+}
+
+// actualiza la disponibilidad de voice reports
 function updateGeminiAvailability(configured) {
     const badge = qs('#voiceSupportBadge');
 
@@ -61,11 +112,12 @@ function updateGeminiAvailability(configured) {
     }
 }
 
+// carga el reporte
 async function loadReport(event) {
     event?.preventDefault();
 
     const form = qs('#reportFilters');
-    if (!validateForm(form)) {
+    if (!form?.elements.tipo?.value || !validateForm(form)) {
         return;
     }
 
@@ -90,8 +142,13 @@ async function loadReport(event) {
     }
 }
 
+// actualiza los campos del reporte
 function updateReportFields() {
     const form = qs('#reportFilters');
+    if (!form?.elements.tipo) {
+        return;
+    }
+
     const type = form.elements.tipo.value;
     const states = reportOptions.estados?.[type] || [];
 
@@ -119,10 +176,31 @@ function updateReportFields() {
         'rendimiento_grupos',
     ].includes(type);
     const careerSelect = form.elements.carrera;
-    careerSelect.disabled = !careerEnabled;
-    careerSelect.closest('label')?.classList.toggle('is-disabled', !careerEnabled);
-    if (!careerEnabled) {
-        careerSelect.value = '';
+    if (careerSelect) {
+        careerSelect.disabled = !careerEnabled;
+        careerSelect.closest('label')?.classList.toggle('is-disabled', !careerEnabled);
+        if (!careerEnabled) {
+            careerSelect.value = '';
+        }
+    }
+
+    const subjectEnabled = [
+        'calificaciones',
+        'resultados_estudiantes',
+        'postulantes_aprobados',
+        'postulantes_reprobados',
+        'estadisticas_materia',
+        'grupos_habilitados',
+        'docentes_grupo',
+        'rendimiento_grupos',
+    ].includes(type);
+    const subjectSelect = form.elements.materia;
+    if (subjectSelect) {
+        subjectSelect.disabled = !subjectEnabled;
+        subjectSelect.closest('label')?.classList.toggle('is-disabled', !subjectEnabled);
+        if (!subjectEnabled) {
+            subjectSelect.value = '';
+        }
     }
 
     const guide = qs('#admittedListGuide');
@@ -131,8 +209,13 @@ function updateReportFields() {
     }
 }
 
+// filtra los grupos por periodo
 function filterGroupsByPeriod() {
     const form = qs('#reportFilters');
+    if (!form?.elements.periodo) {
+        return;
+    }
+
     const period = String(form.elements.periodo.value || '');
     const groups = (reportOptions.grupos || []).filter((group) => !period || String(group.periodo || '') === period);
 
@@ -148,22 +231,25 @@ function filterGroupsByPeriod() {
     );
 }
 
+// llena un select con opciones
 function fillSelect(name, items, valueKey, labelKey, placeholder) {
     const select = qs('#reportFilters')?.elements[name];
     if (!select) {
         return;
     }
 
+    const safeItems = Array.isArray(items) ? items : [];
     const previous = select.value;
-    select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>${items.map((item) => `
+    select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>${safeItems.map((item) => `
         <option value="${escapeHtml(item[valueKey])}">${escapeHtml(item[labelKey])}</option>
     `).join('')}`;
 
-    if (items.some((item) => String(item[valueKey]) === String(previous))) {
+    if (safeItems.some((item) => String(item[valueKey]) === String(previous))) {
         select.value = previous;
     }
 }
 
+// obtiene los parametros actuales del formulario
 function currentParams() {
     const raw = formData(qs('#reportFilters'));
     const params = new URLSearchParams();
@@ -177,6 +263,7 @@ function currentParams() {
     return params;
 }
 
+// renderiza el reporte
 function renderReport(report) {
     qs('#reportTitle').textContent = report.titulo;
     qs('#reportCount').textContent = `${report.resumen.total_resultados} resultado(s), ${report.resumen.mostrados} mostrado(s)`;
@@ -185,6 +272,7 @@ function renderReport(report) {
 
 }
 
+// renderiza el resumen del reporte
 function renderSummary(summary) {
     const container = qs('#reportSummary');
     const entries = Object.entries(summary);
@@ -198,6 +286,7 @@ function renderSummary(summary) {
     `).join('');
 }
 
+// renderiza la tabla del reporte
 function renderTable(columns, rows) {
     const keys = Object.keys(columns);
     qs('#reportTableHead').innerHTML = `<tr>${Object.values(columns).map((title) => `<th>${escapeHtml(title)}</th>`).join('')}</tr>`;
@@ -241,6 +330,7 @@ function exportReport(format) {
 function clearFilters() {
     const form = qs('#reportFilters');
     form.reset();
+    applyReportScope();
     updateReportFields();
     filterGroupsByPeriod();
     loadReport();
@@ -376,17 +466,24 @@ function applyVoiceInterpretation(interpretation) {
     const form = qs('#reportFilters');
     const filters = interpretation.filtros || {};
 
-    form.elements.tipo.value = interpretation.tipo;
+    setFormValue(form, 'tipo', interpretation.tipo);
     updateReportFields();
-    form.elements.buscar.value = filters.buscar || '';
-    form.elements.periodo.value = filters.periodo || '';
+    setFormValue(form, 'buscar', filters.buscar || '');
+    setFormValue(form, 'periodo', filters.periodo || '');
     filterGroupsByPeriod();
-    form.elements.carrera.value = filters.carrera || '';
-    form.elements.estado.value = filters.estado || '';
-    form.elements.grupo.value = filters.grupo || '';
-    form.elements.docente.value = filters.docente || '';
-    form.elements.fecha_inicio.value = filters.fecha_inicio || '';
-    form.elements.fecha_fin.value = filters.fecha_fin || '';
+    setFormValue(form, 'carrera', filters.carrera || '');
+    setFormValue(form, 'estado', filters.estado || '');
+    setFormValue(form, 'grupo', filters.grupo || '');
+    setFormValue(form, 'materia', filters.materia || '');
+    setFormValue(form, 'docente', filters.docente || '');
+    setFormValue(form, 'fecha_inicio', filters.fecha_inicio || '');
+    setFormValue(form, 'fecha_fin', filters.fecha_fin || '');
+}
+
+function setFormValue(form, name, value) {
+    if (form.elements[name]) {
+        form.elements[name].value = value;
+    }
 }
 
 function renderVoiceResult(data) {

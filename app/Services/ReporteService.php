@@ -34,7 +34,7 @@ class ReporteService
         'docentes_grupo',
         'rendimiento_grupos',
     ];
-
+    // hace la generacion de los reportes
     public function generar(array $filtros, int $limite = 500): array
     {
         return match ($filtros['tipo'] ?? 'postulantes') {
@@ -57,7 +57,7 @@ class ReporteService
             default => $this->reportePostulantes($filtros, $limite),
         };
     }
-
+    // hace el reporte de lista de admitidos
     private function reporteListaAdmitidos(array $filtros, int $limite): array
     {
         $periodoId = $filtros['periodo'] ?? $this->periodoActivoId();
@@ -175,7 +175,7 @@ class ReporteService
             'generar_url' => '/dashboard/asignacion-carreras',
         ];
     }
-
+    // hace el reporte de postulantes
     private function reportePostulantes(array $filtros, int $limite): array
     {
         $query = Postulante::query()
@@ -252,7 +252,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // hace el reporte de pagos
     private function reportePagos(array $filtros, int $limite): array
     {
         $query = Pago::query()->orderByDesc('id');
@@ -336,7 +336,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // hace el reporte de calificaciones
     private function reporteCalificaciones(array $filtros, int $limite): array
     {
         $query = ActaNota::query()->orderByDesc('id');
@@ -368,6 +368,9 @@ class ReporteService
 
         if (! empty($filtros['grupo'])) {
             $query->where('id_grupo', $filtros['grupo']);
+        }
+        if (! empty($filtros['materia'])) {
+            $query->where('id_materia', $filtros['materia']);
         }
 
         $this->filtrarCarrera($query, $filtros);
@@ -427,7 +430,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // hace el reporte de resultados de estudiantes
     private function reporteResultadosEstudiantes(array $filtros, int $limite): array
     {
         $tipoSolicitado = $filtros['tipo'] ?? 'resultados_estudiantes';
@@ -465,6 +468,9 @@ class ReporteService
 
         if (! empty($filtros['grupo'])) {
             $query->where('nota.id_grupo', $filtros['grupo']);
+        }
+        if (! empty($filtros['materia'])) {
+            $query->where('nota.id_materia', $filtros['materia']);
         }
 
         if (! empty($filtros['periodo'])) {
@@ -543,7 +549,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // hace el reporte de estadisticas de materia
     private function reporteEstadisticasMateria(array $filtros, int $limite): array
     {
         $query = DB::table('academico.acta_nota as nota')
@@ -575,6 +581,9 @@ class ReporteService
 
         if (! empty($filtros['grupo'])) {
             $query->where('nota.id_grupo', $filtros['grupo']);
+        }
+        if (! empty($filtros['materia'])) {
+            $query->where('nota.id_materia', $filtros['materia']);
         }
 
         if (! empty($filtros['periodo'])) {
@@ -620,7 +629,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // hace el reporte de grupos habilitados
     private function reporteGruposHabilitados(array $filtros, int $limite): array
     {
         $query = Grupo::query()->where('estado', 'activo')->orderBy('codigo');
@@ -640,6 +649,17 @@ class ReporteService
         }
         if (! empty($filtros['periodo'])) {
             $query->where('id_periodo_academico', $filtros['periodo']);
+        }
+        if (! empty($filtros['materia'])) {
+            $query->whereIn('codigo', function ($subquery) use ($filtros): void {
+                $subquery->select('horario.id_grupo')
+                    ->from('academico.horario_grupo as horario')
+                    ->where('horario.id_materia', $filtros['materia']);
+
+                if (! empty($filtros['periodo'])) {
+                    $subquery->where('horario.id_periodo_academico', $filtros['periodo']);
+                }
+            });
         }
         if (! empty($filtros['docente'])) {
             $query->whereIn('codigo', function ($subquery) use ($filtros): void {
@@ -712,7 +732,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // hace el reporte de docentes de grupo
     private function reporteDocentesGrupo(array $filtros, int $limite): array
     {
         $query = DB::table('academico.horario_grupo as horario')
@@ -758,6 +778,9 @@ class ReporteService
         }
         if (! empty($filtros['docente'])) {
             $query->where('horario.username_docente', $filtros['docente']);
+        }
+        if (! empty($filtros['materia'])) {
+            $query->where('horario.id_materia', $filtros['materia']);
         }
         if (! empty($filtros['periodo'])) {
             $query->where('horario.id_periodo_academico', $filtros['periodo']);
@@ -809,7 +832,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    //  hace el reporte de rendimiento de grupos
     private function reporteRendimientoGrupos(array $filtros, int $limite): array
     {
         $promediosEstudiante = DB::table('academico.acta_nota as nota')
@@ -823,6 +846,9 @@ class ReporteService
 
         if (! empty($filtros['grupo'])) {
             $promediosEstudiante->where('nota.id_grupo', $filtros['grupo']);
+        }
+        if (! empty($filtros['materia'])) {
+            $promediosEstudiante->where('nota.id_materia', $filtros['materia']);
         }
 
         $this->filtrarCarreraQueryBuilder($promediosEstudiante, $filtros, 'nota.username_postulante');
@@ -906,7 +932,7 @@ class ReporteService
             $filtros,
         );
     }
-
+    // filtra la carrera del query builder
     private function filtrarCarreraQueryBuilder($query, array $filtros, string $usernameColumn): void
     {
         if (empty($filtros['carrera'])) {
@@ -961,7 +987,7 @@ class ReporteService
             }
         });
     }
-
+    // filtra el docente del query builder
     private function filtrarDocentePostulanteQueryBuilder($query, array $filtros, string $usernameColumn): void
     {
         if (empty($filtros['docente'])) {
@@ -990,6 +1016,7 @@ class ReporteService
         });
     }
 
+    // filtra el docente del query builder
     private function filtrarDocenteNotas(Builder $query, array $filtros): void
     {
         if (empty($filtros['docente'])) {
@@ -1009,6 +1036,7 @@ class ReporteService
         });
     }
 
+    // filtra el docente del query builder
     private function filtrarDocenteNotasQueryBuilder(
         $query,
         array $filtros,
@@ -1032,6 +1060,7 @@ class ReporteService
         });
     }
 
+    // filtra el estado del postulante
     private function filtrarEstadoPostulante(Builder $query, ?string $estado): void
     {
         if (! $estado) {
@@ -1079,7 +1108,7 @@ class ReporteService
 
         $query->where('estado', $estado);
     }
-
+    // hace el filtro de grupo y periodo
     private function filtrarGrupoPeriodo(
         Builder $query,
         array $filtros,
@@ -1110,6 +1139,7 @@ class ReporteService
         }
     }
 
+    // hace el filtro de fecha de pago
     private function filtrarFechaPago(Builder $query, array $filtros): void
     {
         if (empty($filtros['fecha_inicio']) && empty($filtros['fecha_fin'])) {
@@ -1128,6 +1158,7 @@ class ReporteService
         $query->whereIn('username_postulante', $pagos);
     }
 
+    // hace el contexto de los postulantes
     private function contextoPostulantes(Collection $usernames): array
     {
         $carrerasPostulante = PostulanteCarrera::whereIn('username_postulante', $usernames)

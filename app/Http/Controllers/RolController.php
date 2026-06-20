@@ -19,7 +19,7 @@ class RolController extends Controller
                 ->get(),
         ]);
     }
-
+    // hace el almacenamiento de un rol
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -34,6 +34,7 @@ class RolController extends Controller
         ], 201);
     }
 
+    // muestra un rol especifico
     public function show(Rol $rol): JsonResponse
     {
         return response()->json([
@@ -41,6 +42,7 @@ class RolController extends Controller
         ]);
     }
 
+    // actualiza un rol especifico
     public function update(Request $request, Rol $rol): JsonResponse
     {
         $validated = $request->validate([
@@ -60,6 +62,7 @@ class RolController extends Controller
         ]);
     }
 
+    // elimina un rol especifico
     public function destroy(Rol $rol): JsonResponse
     {
         $rol->permisos()->detach();
@@ -71,6 +74,7 @@ class RolController extends Controller
         ]);
     }
 
+    // sincroniza los permisos de un rol
     public function sincronizarPermisos(Request $request, Rol $rol): JsonResponse
     {
         $validated = $request->validate([

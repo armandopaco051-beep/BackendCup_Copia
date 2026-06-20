@@ -16,7 +16,7 @@ export function initRolesPermisos() {
 
     loadSecurity();
 }
-
+// hace la peticion para cargar los roles y permisos
 async function loadSecurity() {
     try {
         const [rolesResponse, permissionsResponse] = await Promise.all([
@@ -36,6 +36,7 @@ async function loadSecurity() {
     }
 }
 
+// renderiza los roles
 function renderRoles() {
     const target = qs('#rolesCards');
 
@@ -59,6 +60,7 @@ function renderRoles() {
     });
 }
 
+// renderiza la matriz de permisos
 function renderPermissionMatrix() {
     const rows = qs('#permissionMatrixRows');
     const input = qs('#matrixRoleId');
@@ -90,6 +92,7 @@ function renderPermissionMatrix() {
     `).join('') || '<p>No hay permisos registrados.</p>';
 }
 
+// crea un rol
 async function createRole(event) {
     event.preventDefault();
 
@@ -113,6 +116,7 @@ async function createRole(event) {
     }
 }
 
+// crea un permiso
 async function createPermission(event) {
     event.preventDefault();
 
@@ -136,6 +140,7 @@ async function createPermission(event) {
     }
 }
 
+// sincroniza los permisos
 async function syncPermissions(event) {
     event.preventDefault();
 

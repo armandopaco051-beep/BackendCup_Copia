@@ -31,7 +31,7 @@ export function initUsuarios() {
         loadUsers();
     }
 }
-
+// carga los usuarios
 async function loadUsers() {
     try {
         const data = await apiRequest('/api/usuarios');
@@ -42,6 +42,7 @@ async function loadUsers() {
     }
 }
 
+// renderiza los usuarios
 function renderUsers(filter = '') {
     const table = qs('#usersTable');
     const count = qs('#usersCount');
@@ -97,6 +98,7 @@ function renderUsers(filter = '') {
     });
 }
 
+// guarda o actualiza un usuario
 async function saveUser(event) {
     event.preventDefault();
 
@@ -169,6 +171,7 @@ async function saveUser(event) {
     }
 }
 
+// llena el formulario con los datos del usuario
 function fillUserForm(username) {
     const form = qs('#createUserForm');
     const user = users.find((item) => item.username === username);
@@ -208,6 +211,7 @@ function fillUserForm(username) {
     qs('#createUserPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// resetea el formulario
 function resetUserForm() {
     const form = qs('#createUserForm');
 
@@ -224,6 +228,7 @@ function resetUserForm() {
     syncUserTypeFields();
 }
 
+// sincroniza los campos del formulario según el tipo de usuario
 function syncUserTypeFields() {
     const form = qs('#createUserForm');
 
@@ -246,6 +251,7 @@ function syncUserTypeFields() {
     });
 }
 
+// devuelve el label del estado
 function labelState(state) {
     return {
         activo: 'Activo',
@@ -256,6 +262,7 @@ function labelState(state) {
     }[state] || state;
 }
 
+// devuelve la clase del estado profesional
 function professionalStateClass(state) {
     return {
         activo: 'is-admitted',
@@ -266,6 +273,7 @@ function professionalStateClass(state) {
     }[state] || '';
 }
 
+// establece la visibilidad de un campo
 function setFieldVisibility(field, visible) {
     field.hidden = !visible;
     qsa('input, select, textarea', field).forEach((input) => {
@@ -276,6 +284,7 @@ function setFieldVisibility(field, visible) {
     });
 }
 
+// establece el texto del botón de submit
 function setUserSubmitText(text) {
     const button = qs('#createUserForm button[type="submit"]');
 
@@ -284,6 +293,7 @@ function setUserSubmitText(text) {
     }
 }
 
+// devuelve el mensaje de error del usuario
 function userErrorMessage(error) {
     const errors = error?.data?.errors;
 
@@ -294,6 +304,7 @@ function userErrorMessage(error) {
     return error?.data?.message || error?.message || 'No se pudo completar la operacion.';
 }
 
+// asigna un rol a un usuario
 async function assignRole(event) {
     event.preventDefault();
 
@@ -317,6 +328,7 @@ async function assignRole(event) {
     }
 }
 
+// restablece la contraseña de un usuario
 async function resetPassword(event) {
     event.preventDefault();
 

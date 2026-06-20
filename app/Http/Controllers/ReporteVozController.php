@@ -6,6 +6,7 @@ use App\Models\Bitacora;
 use App\Models\Carrera;
 use App\Models\Docente;
 use App\Models\Grupo;
+use App\Models\Materia;
 use App\Models\PeriodoAcademico;
 use App\Services\GeminiService;
 use App\Services\ReporteService;
@@ -29,9 +30,10 @@ class ReporteVozController extends Controller
             'comando' => ['required', 'string', 'min:5', 'max:600'],
         ]);
 
-        $catalogos = $this->catalogos();
+        $catalogos = $this->catalogos($request);
         $interpretacion = $this->gemini->interpretarReporte($validated['comando'], $catalogos);
         $interpretacion = $this->validarInterpretacion($interpretacion, $catalogos);
+        $interpretacion['filtros'] = $this->aplicarAlcanceDocente($interpretacion['filtros'], $request);
         $filtros = [
             'tipo' => $interpretacion['tipo'],
             ...$interpretacion['filtros'],
@@ -78,6 +80,7 @@ class ReporteVozController extends Controller
             'filtros.fecha_fin' => ['nullable', 'date_format:Y-m-d'],
             'filtros.grupo' => ['nullable', 'string', 'max:100'],
             'filtros.docente' => ['nullable', 'string', 'max:500'],
+            'filtros.materia' => ['nullable', 'string', 'max:100'],
         ]);
 
         if ($validator->fails()) {
@@ -96,6 +99,8 @@ class ReporteVozController extends Controller
         $this->validarCatalogo($filtros, 'carrera', collect($catalogos['carreras'])->pluck('codigo')->all());
         $this->validarCatalogo($filtros, 'grupo', collect($catalogos['grupos'])->pluck('codigo')->all());
         $this->validarCatalogo($filtros, 'docente', collect($catalogos['docentes'])->pluck('username')->all());
+        $this->validarCatalogo($filtros, 'materia', collect($catalogos['materias'])->pluck('id')->all());
+        $this->validarCatalogo(['tipo' => $data['tipo']], 'tipo', collect($catalogos['tipos'])->pluck('codigo')->all());
 
         $estados = $catalogos['estados'][$data['tipo']] ?? [];
         $this->validarCatalogo($filtros, 'estado', $estados);
@@ -117,7 +122,6 @@ class ReporteVozController extends Controller
             'filtros' => $filtros,
         ];
     }
-
     private function validarCatalogo(array $filtros, string $campo, array $permitidos): void
     {
         if (isset($filtros[$campo]) && ! in_array($filtros[$campo], $permitidos, false)) {
@@ -127,10 +131,35 @@ class ReporteVozController extends Controller
         }
     }
 
-    private function catalogos(): array
+    private function catalogos(Request $request): array
     {
+        $usuario = $request->user();
+        $esDocente = $this->usuarioEsDocente($request);
+        $grupos = Grupo::orderBy('codigo')
+            ->when($esDocente, function ($query) use ($usuario): void {
+                $query->whereIn('codigo', function ($subquery) use ($usuario): void {
+                    $subquery->select('id_grupo')
+                        ->from('academico.horario_grupo')
+                        ->where('username_docente', $usuario?->username);
+                });
+            })
+            ->get(['codigo']);
+        $docentes = Docente::orderBy('nombre')
+            ->when($esDocente, fn ($query) => $query->where('username_docente', $usuario?->username))
+            ->get(['username_docente', 'nombre']);
+        $materias = Materia::orderBy('nombre')
+            ->when($esDocente, function ($query) use ($usuario): void {
+                $query->whereIn('id', function ($subquery) use ($usuario): void {
+                    $subquery->select('id_materia')
+                        ->from('academico.horario_grupo')
+                        ->where('username_docente', $usuario?->username);
+                });
+            })
+            ->get(['id', 'nombre']);
+
         return [
             'fecha_actual' => now()->format('Y-m-d'),
+            'tipos' => $this->tiposDisponibles($request),
             'periodos' => PeriodoAcademico::orderByDesc('id')
                 ->get()
                 ->map(fn (PeriodoAcademico $periodo): array => [
@@ -148,16 +177,21 @@ class ReporteVozController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'grupos' => Grupo::orderBy('codigo')
-                ->get(['codigo'])
+            'grupos' => $grupos
                 ->map(fn (Grupo $grupo): array => ['codigo' => $grupo->codigo])
                 ->values()
                 ->all(),
-            'docentes' => Docente::orderBy('nombre')
-                ->get(['username_docente', 'nombre'])
+            'docentes' => $docentes
                 ->map(fn (Docente $docente): array => [
                     'username' => $docente->username_docente,
                     'nombre' => $docente->nombre,
+                ])
+                ->values()
+                ->all(),
+            'materias' => $materias
+                ->map(fn (Materia $materia): array => [
+                    'id' => $materia->id,
+                    'nombre' => $materia->nombre,
                 ])
                 ->values()
                 ->all(),
@@ -175,5 +209,58 @@ class ReporteVozController extends Controller
                 'rendimiento_grupos' => [],
             ],
         ];
+    }
+
+    private function aplicarAlcanceDocente(array $filtros, Request $request): array
+    {
+        if ($this->usuarioEsDocente($request)) {
+            $filtros['docente'] = $request->user()?->username;
+        }
+
+        return $filtros;
+    }
+
+    private function usuarioEsDocente(Request $request): bool
+    {
+        $usuario = $request->user();
+
+        return $usuario?->tipo === 'docente'
+            || $usuario?->rol?->nombre === 'docente';
+    }
+
+    private function tiposDisponibles(Request $request): array
+    {
+        $tipos = [
+            ['codigo' => 'postulantes', 'nombre' => 'Lista general de postulantes'],
+            ['codigo' => 'lista_admitidos', 'nombre' => 'Lista oficial de admitidos'],
+            ['codigo' => 'postulantes_aprobados', 'nombre' => 'Postulantes aprobados y promedios'],
+            ['codigo' => 'postulantes_reprobados', 'nombre' => 'Postulantes reprobados y promedios'],
+            ['codigo' => 'resultados_estudiantes', 'nombre' => 'Aprobados, reprobados y promedios'],
+            ['codigo' => 'estadisticas_materia', 'nombre' => 'Estadisticas por materia'],
+            ['codigo' => 'grupos_habilitados', 'nombre' => 'Grupos habilitados'],
+            ['codigo' => 'docentes_grupo', 'nombre' => 'Docentes por grupo'],
+            ['codigo' => 'rendimiento_grupos', 'nombre' => 'Rendimiento por grupo'],
+            ['codigo' => 'pagos', 'nombre' => 'Pagos de matricula'],
+            ['codigo' => 'calificaciones', 'nombre' => 'Detalle de calificaciones'],
+        ];
+
+        if (! $this->usuarioEsDocente($request)) {
+            return $tipos;
+        }
+
+        $permitidosDocente = [
+            'postulantes_aprobados',
+            'postulantes_reprobados',
+            'resultados_estudiantes',
+            'estadisticas_materia',
+            'grupos_habilitados',
+            'rendimiento_grupos',
+            'calificaciones',
+        ];
+
+        return array_values(array_filter(
+            $tipos,
+            fn (array $tipo): bool => in_array($tipo['codigo'], $permitidosDocente, true),
+        ));
     }
 }

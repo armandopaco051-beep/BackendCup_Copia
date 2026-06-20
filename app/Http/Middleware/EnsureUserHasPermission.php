@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserHasPermission
 {   
-    // pregunta 2 
+    // hace la verificacion de permisos
     public function handle(Request $request, Closure $next, string ...$permisos): Response
     {
         $usuario = $request->user();
@@ -22,7 +22,7 @@ class EnsureUserHasPermission
 
         $usuario->loadMissing('rol.permisos');
 
-        if ($this->puedeAcceder($usuario, $permisos)) {
+        if ($this->puedeAcceder($usuario, $permisos)) { // verifica si el usuario puede acceder
             return $next($request);
         }
 
@@ -42,7 +42,8 @@ class EnsureUserHasPermission
             ? response()->json(['message' => 'No tienes permiso para realizar esta accion.'], Response::HTTP_FORBIDDEN)
             : abort(Response::HTTP_FORBIDDEN, 'No tienes permiso para acceder a este modulo.');
     }
-
+    
+    // verifica si el usuario puede acceder
     private function puedeAcceder($usuario, array $permisos): bool
     {
         if ($usuario->esAdministrador()) {

@@ -1,7 +1,6 @@
 @extends('layouts.app')
 
 @section('title', 'Reportes | FICCT')
-
 @section('content')
 @php
     $usuarioActual = auth()->user();
@@ -82,17 +81,7 @@
                 <div class="report-filter-grid">
                     <label>Tipo de reporte
                         <select name="tipo" required>
-                            <option value="postulantes">Lista general de postulantes</option>
-                            <option value="lista_admitidos">Lista oficial de admitidos</option>
-                            <option value="postulantes_aprobados">Postulantes aprobados y promedios</option>
-                            <option value="postulantes_reprobados">Postulantes reprobados y promedios</option>
-                            <option value="resultados_estudiantes">Aprobados, reprobados y promedios</option>
-                            <option value="estadisticas_materia">Estadisticas por materia</option>
-                            <option value="grupos_habilitados">Grupos habilitados</option>
-                            <option value="docentes_grupo">Docentes por grupo</option>
-                            <option value="rendimiento_grupos">Rendimiento por grupo</option>
-                            <option value="pagos">Pagos de matricula</option>
-                            <option value="calificaciones">Detalle de calificaciones</option>
+                            <option value="">Cargando reportes...</option>
                         </select>
                     </label>
                     <label>Buscar
@@ -116,6 +105,11 @@
                     <label>Grupo
                         <select name="grupo">
                             <option value="">Todos los grupos</option>
+                        </select>
+                    </label>
+                    <label>Materia
+                        <select name="materia">
+                            <option value="">Todas las materias</option>
                         </select>
                     </label>
                     <label>Docente

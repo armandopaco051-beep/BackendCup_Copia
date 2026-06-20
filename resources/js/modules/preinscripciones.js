@@ -46,7 +46,7 @@ export function initPreinscripciones() {
     loadCareers();
     loadPreinscriptions();
 }
-
+// esta funcion hace la carga de las preinscripciones
 async function loadPreinscriptions() {
     if (!qs('#preinscriptionsTable')) {
         return;
@@ -60,7 +60,7 @@ async function loadPreinscriptions() {
         qs('#preinscriptionsTable').innerHTML = `<tr><td colspan="7">${escapeHtml(error.data?.message || error.message)}</td></tr>`;
     }
 }
-
+// esta funcion hace la carga de las carreras
 async function loadCareers() {
     const first = qs('#careerFirstSelect');
     const second = qs('#careerSecondSelect');
@@ -79,7 +79,7 @@ async function loadCareers() {
         });
     }
 }
-
+// esta funcion renderiza las opciones de las carreras
 function renderCareerOptions() {
     const first = qs('#careerFirstSelect');
     const second = qs('#careerSecondSelect');
@@ -98,6 +98,7 @@ function renderCareerOptions() {
     }
 }
 
+// esta funcion renderiza las preinscripciones
 function renderPreinscriptions(filter = '') {
     const table = qs('#preinscriptionsTable');
     const count = qs('#preinscriptionsCount');
@@ -154,6 +155,7 @@ function renderPreinscriptions(filter = '') {
     });
 }
 
+// esta funcion guarda la preinscripcion
 async function savePreinscription(event) {
     event.preventDefault();
 
@@ -214,6 +216,7 @@ async function savePreinscription(event) {
     }
 }
 
+// esta funcion busca la preinscripcion publica
 async function lookupPublicPreinscription() {
     const ci = qs('#publicLookupCi')?.value.trim();
 
@@ -239,6 +242,7 @@ async function lookupPublicPreinscription() {
     }
 }
 
+// esta funcion llena el formulario con los datos de la preinscripcion publica
 function fillPublicPreinscriptionForm(preinscription) {
     const form = qs('#preinscriptionForm');
 
@@ -279,6 +283,7 @@ function fillPublicPreinscriptionForm(preinscription) {
     qs('#preinscriptionForm')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// esta funcion muestra la pasarela de pago publica
 async function showPublicPaymentGateway(preinscription) {
     const gateway = qs('#publicPaymentGateway');
     const form = qs('#preinscriptionForm');
@@ -336,6 +341,7 @@ async function showPublicPaymentGateway(preinscription) {
     }
 }
 
+// esta funcion crea el intento de pago publico
 async function createPublicPaymentIntent() {
     showPublicPaymentMessage('Preparando pasarela segura de Stripe...', true);
 
@@ -392,6 +398,7 @@ async function mountStripeElements(stripeKey, clientSecret) {
     showPublicPaymentMessage('Ingresa los datos de tu tarjeta de prueba.', true);
 }
 
+// esta funcion procesa el pago publico
 async function payPublicMatricula(event) {
     event.preventDefault();
 
@@ -455,6 +462,7 @@ async function payPublicMatricula(event) {
     }
 }
 
+// esta funcion carga el sdk de stripe
 function loadStripeSdk() {
     if (window.Stripe) {
         return Promise.resolve();
@@ -478,6 +486,7 @@ function loadStripeSdk() {
     });
 }
 
+// esta funcion muestra el mensaje de pago publico
 function showPublicPaymentMessage(message, success = false) {
     const output = qs('#publicPaymentOutput');
 
@@ -509,6 +518,7 @@ function showPublicPaymentLogin(visible) {
     }
 }
 
+// esta funcion reinicia el elemento de pago publico
 function resetPublicPaymentElement() {
     if (publicPayment.paymentElement) {
         publicPayment.paymentElement.destroy();

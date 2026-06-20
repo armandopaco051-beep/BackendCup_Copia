@@ -68,7 +68,7 @@ class HabilitacionPostulanteController extends Controller
             'pago' => $pago,
         ]);
     }
-
+    // habilita el postulante
     public function store(Request $request, string $username): JsonResponse
     {
         $postulante = Postulante::where('username_postulante', $username)->firstOrFail();
@@ -138,12 +138,12 @@ class HabilitacionPostulanteController extends Controller
             'postulante' => $postulante,
         ]);
     }
-
+    //esto hace la consulta de los requisitos
     private function requisitos(string $username): ?RequisitoPostulante
     {
         return RequisitoPostulante::where('username_postulante', $username)->first();
-    }
-
+    }   
+    //esto hace la consulta del pago
     private function pago(string $username): ?Pago
     {
         return Pago::where('username_postulante', $username)
@@ -151,6 +151,7 @@ class HabilitacionPostulanteController extends Controller
             ->first();
     }
 
+    //verifica si los requisitos estan completos
     private function requisitosCompletos(?RequisitoPostulante $requisitos): bool
     {
         return (bool) $requisitos
@@ -159,16 +160,19 @@ class HabilitacionPostulanteController extends Controller
             && $requisitos->libretas_entregadas;
     }
 
+    //verifica si el pago es valido
     private function pagoValido(?Pago $pago): bool
     {
         return (bool) $pago && in_array($pago->estado, ['pagado', 'registrado'], true);
     }
 
+    //genera una password temporal
     private function generarPasswordTemporal(): string
     {
         return 'Cup-'.Str::upper(Str::random(10));
     }
 
+    //envia las credenciales al postulante
     private function enviarCredenciales(Postulante $postulante, Usuario $usuario, string $passwordTemporal): array
     {
         try {
@@ -188,6 +192,7 @@ class HabilitacionPostulanteController extends Controller
         }
     }
 
+    //formatea el candidato
     private function formatearCandidato(Postulante $postulante): array
     {
         $username = $postulante->username_postulante;

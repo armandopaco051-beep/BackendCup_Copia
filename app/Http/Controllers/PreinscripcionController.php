@@ -38,7 +38,7 @@ class PreinscripcionController extends Controller
                 ->values(),
         ]);
     }
-
+    // hace la consulta de todas las preinscripciones
     public function index(): JsonResponse
     {
         $preinscripciones = Postulante::orderByDesc('username_postulante')
@@ -51,7 +51,8 @@ class PreinscripcionController extends Controller
             'preinscripciones' => $preinscripciones,
         ]);
     }
-    // se encarga mayormente 
+    // se encarga mayormente de crear la preinscripcion 
+    // y de validar los datos de entrada
 
     public function store(Request $request): JsonResponse
     {
@@ -159,7 +160,7 @@ class PreinscripcionController extends Controller
             'puede_editar' => $this->puedeEditar($postulante),
         ]);
     }
-
+    // esta funcion hace la actualizacion de la preinscripcion
     public function updatePublic(Request $request, string $username): JsonResponse
     {
         $postulante = Postulante::where('username_postulante', $username)
@@ -234,7 +235,7 @@ class PreinscripcionController extends Controller
             'preinscripcion' => $this->formatPreinscripcion($postulante->refresh()),
         ]);
     }
-
+    // esto hace el pdf del formulario
     public function formularioPdf(string $username)
     {
         $postulante = Postulante::where('username_postulante', $username)->firstOrFail();
@@ -258,6 +259,7 @@ class PreinscripcionController extends Controller
 
         return $pdf->download('formulario-preinscripcion-'.$postulante->username_postulante.'.pdf');
     }
+    // genera el username del postulante
 
     private function generarUsernamePostulante(): string
     {
@@ -275,7 +277,7 @@ class PreinscripcionController extends Controller
             'username' => ['No se pudo generar un folio disponible para el postulante.'],
         ]);
     }
-
+    // previene la preinscripcion duplicada
     private function prevenirPreinscripcionDuplicada(string $ci, string $correo): void
     {
         $postulantes = Postulante::where(function ($query) use ($ci, $correo): void {
@@ -296,7 +298,7 @@ class PreinscripcionController extends Controller
             }
         }
     }
-
+    // elimina las preinscripciones pendientes
     private function eliminarPreinscripcionesPendientes(string $ci, string $correo): void
     {
         $pendientes = Postulante::where('estado', 'pendiente_pago')
@@ -316,7 +318,7 @@ class PreinscripcionController extends Controller
             Usuario::where('username', $username)->delete();
         }
     }
-
+    // verifica si el postulante puede editar
     private function puedeEditar(Postulante $postulante): bool
     {
         if (in_array($postulante->estado, ['habilitado', 'admitido'], true)) {
@@ -330,12 +332,13 @@ class PreinscripcionController extends Controller
             && $requisitos->titulo_entregado
             && $requisitos->libretas_entregadas);
     }
-
+    // genera una password temporal
     private function generarPasswordTemporal(): string
     {
         return 'Cup-'.Str::upper(Str::random(10));
     }
 
+    // obtiene el id del rol postulante
     private function rolPostulanteId(): int
     {
         $rol = Rol::where('nombre', 'postulante')->first();
@@ -349,6 +352,7 @@ class PreinscripcionController extends Controller
         return $rol->id;
     }
 
+    // formatea la preinscripcion
     private function formatPreinscripcion(Postulante $postulante): array
     {
         $carreras = $this->formatCarreras($postulante->username_postulante);
@@ -379,6 +383,7 @@ class PreinscripcionController extends Controller
         ];
     }
 
+    // obtiene las carreras seleccionadas
     private function carrerasSeleccionadas(array $validated): array
     {
         $carreras = collect($validated['carreras'] ?? [])
@@ -406,6 +411,7 @@ class PreinscripcionController extends Controller
         return $carreras->values()->all();
     }
 
+    // formatea las carreras
     private function formatCarreras(string $username): array
     {
         $postulanteCarreras = PostulanteCarrera::where('username_postulante', $username)->get();
@@ -429,6 +435,7 @@ class PreinscripcionController extends Controller
             ->all();
     }
 
+    // obtiene el estado del resumen
     private function estadoResumen(Postulante $postulante, ?Pago $pago, ?RequisitoPostulante $requisitos): array
     {
         if ($postulante->estado === 'pendiente_pago') {

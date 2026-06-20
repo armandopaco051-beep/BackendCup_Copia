@@ -6,6 +6,7 @@ use App\Models\Bitacora;
 use App\Models\Carrera;
 use App\Models\Docente;
 use App\Models\Grupo;
+use App\Models\Materia;
 use App\Models\PeriodoAcademico;
 use App\Services\ReporteExcelService;
 use App\Services\ReporteService;
@@ -23,24 +24,43 @@ class ReporteController extends Controller
         private readonly ReporteExcelService $excel,
     ) {
     }
-
-    public function opciones(): JsonResponse
+    // hace la obtencion de las opciones para los reportes
+    public function opciones(Request $request): JsonResponse
     {
+        $usuario = $request->user();
+        $esDocente = $this->usuarioEsDocente($request);
+        $docentes = Docente::orderBy('nombre')
+            ->when($esDocente, fn ($query) => $query->where('username_docente', $usuario?->username))
+            ->get(['username_docente', 'nombre']);
+
+        $grupos = Grupo::orderBy('codigo')
+            ->when($esDocente, function ($query) use ($usuario): void {
+                $query->whereIn('codigo', function ($subquery) use ($usuario): void {
+                    $subquery->select('id_grupo')
+                        ->from('academico.horario_grupo')
+                        ->where('username_docente', $usuario?->username);
+                });
+            })
+            ->get(['codigo', 'turno', 'id_periodo_academico']);
+        $materias = Materia::orderBy('nombre')
+            ->when($esDocente, function ($query) use ($usuario): void {
+                $query->whereIn('id', function ($subquery) use ($usuario): void {
+                    $subquery->select('id_materia')
+                        ->from('academico.horario_grupo')
+                        ->where('username_docente', $usuario?->username);
+                });
+            })
+            ->get(['id', 'nombre']);
+
         return response()->json([
             'gemini_configurado' => (string) config('services.gemini.key') !== '',
-            'tipos' => [
-                ['codigo' => 'postulantes', 'nombre' => 'Lista general de postulantes'],
-                ['codigo' => 'lista_admitidos', 'nombre' => 'Lista oficial de admitidos'],
-                ['codigo' => 'postulantes_aprobados', 'nombre' => 'Postulantes aprobados y promedios'],
-                ['codigo' => 'postulantes_reprobados', 'nombre' => 'Postulantes reprobados y promedios'],
-                ['codigo' => 'resultados_estudiantes', 'nombre' => 'Aprobados, reprobados y promedios'],
-                ['codigo' => 'estadisticas_materia', 'nombre' => 'Estadisticas por materia'],
-                ['codigo' => 'grupos_habilitados', 'nombre' => 'Grupos habilitados'],
-                ['codigo' => 'docentes_grupo', 'nombre' => 'Docentes por grupo'],
-                ['codigo' => 'rendimiento_grupos', 'nombre' => 'Rendimiento por grupo'],
-                ['codigo' => 'pagos', 'nombre' => 'Pagos de matricula'],
-                ['codigo' => 'calificaciones', 'nombre' => 'Detalle de calificaciones'],
+            'alcance' => [
+                'docente_forzado' => $esDocente ? $usuario?->username : null,
+                'descripcion' => $esDocente
+                    ? 'Los reportes se limitan automaticamente a tus grupos, materias y alumnos.'
+                    : 'Los reportes pueden consultar el alcance completo permitido por el rol.',
             ],
+            'tipos' => $this->tiposDisponibles($request),
             'periodos' => PeriodoAcademico::orderByDesc('id')
                 ->get()
                 ->map(fn (PeriodoAcademico $periodo): array => [
@@ -56,19 +76,23 @@ class ReporteController extends Controller
                     'nombre' => $carrera->nombre,
                 ])
                 ->values(),
-            'grupos' => Grupo::orderBy('codigo')
-                ->get(['codigo', 'turno', 'id_periodo_academico'])
+            'grupos' => $grupos
                 ->map(fn (Grupo $grupo): array => [
                     'codigo' => $grupo->codigo,
                     'turno' => $grupo->turno,
                     'periodo' => $grupo->id_periodo_academico,
                 ])
                 ->values(),
-            'docentes' => Docente::orderBy('nombre')
-                ->get(['username_docente', 'nombre'])
+            'docentes' => $docentes
                 ->map(fn (Docente $docente): array => [
                     'username' => $docente->username_docente,
                     'nombre' => $docente->nombre.' ('.$docente->username_docente.')',
+                ])
+                ->values(),
+            'materias' => $materias
+                ->map(fn (Materia $materia): array => [
+                    'id' => $materia->id,
+                    'nombre' => $materia->nombre.' ('.$materia->id.')',
                 ])
                 ->values(),
             'estados' => [
@@ -157,6 +181,7 @@ class ReporteController extends Controller
             'fecha_fin' => ['nullable', 'date'],
             'grupo' => ['nullable', 'string', 'max:100'],
             'docente' => ['nullable', 'string', 'max:500'],
+            'materia' => ['nullable', 'string', 'max:100', Rule::exists('pgsql.academico.materia', 'id')],
             'limite' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
@@ -168,11 +193,71 @@ class ReporteController extends Controller
             ]);
         }
 
-        return $validated;
+        $permitidos = collect($this->tiposDisponibles($request))->pluck('codigo')->all();
+        if (! in_array($validated['tipo'], $permitidos, true)) {
+            throw ValidationException::withMessages([
+                'tipo' => ['No tienes permiso para consultar ese tipo de reporte.'],
+            ]);
+        }
+
+        return $this->aplicarAlcanceDocente($validated, $request);
     }
 
     private function nombreArchivo(string $tipo): string
     {
         return 'reporte-'.$tipo.'-'.now()->format('Ymd-His');
+    }
+
+    private function aplicarAlcanceDocente(array $filtros, Request $request): array
+    {
+        if ($this->usuarioEsDocente($request)) {
+            $filtros['docente'] = $request->user()?->username;
+        }
+
+        return $filtros;
+    }
+
+    private function usuarioEsDocente(Request $request): bool
+    {
+        $usuario = $request->user();
+
+        return $usuario?->tipo === 'docente'
+            || $usuario?->rol?->nombre === 'docente';
+    }
+
+    private function tiposDisponibles(Request $request): array
+    {
+        $tipos = [
+            ['codigo' => 'postulantes', 'nombre' => 'Lista general de postulantes'],
+            ['codigo' => 'lista_admitidos', 'nombre' => 'Lista oficial de admitidos'],
+            ['codigo' => 'postulantes_aprobados', 'nombre' => 'Postulantes aprobados y promedios'],
+            ['codigo' => 'postulantes_reprobados', 'nombre' => 'Postulantes reprobados y promedios'],
+            ['codigo' => 'resultados_estudiantes', 'nombre' => 'Aprobados, reprobados y promedios'],
+            ['codigo' => 'estadisticas_materia', 'nombre' => 'Estadisticas por materia'],
+            ['codigo' => 'grupos_habilitados', 'nombre' => 'Grupos habilitados'],
+            ['codigo' => 'docentes_grupo', 'nombre' => 'Docentes por grupo'],
+            ['codigo' => 'rendimiento_grupos', 'nombre' => 'Rendimiento por grupo'],
+            ['codigo' => 'pagos', 'nombre' => 'Pagos de matricula'],
+            ['codigo' => 'calificaciones', 'nombre' => 'Detalle de calificaciones'],
+        ];
+
+        if (! $this->usuarioEsDocente($request)) {
+            return $tipos;
+        }
+
+        $permitidosDocente = [
+            'postulantes_aprobados',
+            'postulantes_reprobados',
+            'resultados_estudiantes',
+            'estadisticas_materia',
+            'grupos_habilitados',
+            'rendimiento_grupos',
+            'calificaciones',
+        ];
+
+        return array_values(array_filter(
+            $tipos,
+            fn (array $tipo): bool => in_array($tipo['codigo'], $permitidosDocente, true),
+        ));
     }
 }

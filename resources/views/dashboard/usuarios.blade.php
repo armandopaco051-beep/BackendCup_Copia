@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Gestion de usuarios | FICCT')
-
+{{-- seccion de la pregunta 3 --}}
 @section('content')
 <main class="portal-shell" data-page="usuarios">
     @include('dashboard.partials.sidebar', ['active' => 'usuarios'])

@@ -56,7 +56,7 @@ class GeminiService
 
         return $result;
     }
-
+    // hace el  prompt para gemini
     private function prompt(string $comando, array $catalogos): string
     {
         $periodos = collect($catalogos['periodos'])
@@ -71,6 +71,12 @@ class GeminiService
         $docentes = collect($catalogos['docentes'] ?? [])
             ->map(fn (array $docente): string => "{$docente['username']} = {$docente['nombre']}")
             ->join(', ');
+        $materias = collect($catalogos['materias'] ?? [])
+            ->map(fn (array $materia): string => "{$materia['id']} = {$materia['nombre']}")
+            ->join(', ');
+        $tipos = collect($catalogos['tipos'] ?? [])
+            ->map(fn (array $tipo): string => "- {$tipo['codigo']}: {$tipo['nombre']}.")
+            ->join("\n");
 
         return <<<PROMPT
 Eres el interprete de comandos de reportes del sistema CUP UAGRM.
@@ -78,22 +84,13 @@ Convierte la solicitud en los filtros permitidos. No inventes identificadores.
 
 Fecha actual: {$catalogos['fecha_actual']}.
 Tipos permitidos:
-- postulantes: lista general del proceso de admision.
-- lista_admitidos: lista oficial de estudiantes con carrera asignada por promedio y cupo.
-- postulantes_aprobados: estudiantes con promedio final mayor o igual a 60.
-- postulantes_reprobados: estudiantes con promedio final menor a 60.
-- resultados_estudiantes: aprobados, reprobados y promedios generales por estudiante.
-- estadisticas_materia: promedio, aprobados y reprobados por materia.
-- grupos_habilitados: grupos activos, inscritos y cupos.
-- docentes_grupo: docentes, materias y horarios por grupo.
-- rendimiento_grupos: ranking de grupos con mayor cantidad de aprobados.
-- pagos: pagos de matricula.
-- calificaciones: detalle de notas por materia.
+{$tipos}
 Formatos: pantalla, pdf, excel.
 Periodos disponibles: {$periodos}.
 Carreras disponibles: {$carreras}.
 Grupos disponibles: {$grupos}.
 Docentes disponibles: {$docentes}.
+Materias disponibles: {$materias}.
 
 Estados por tipo:
 - postulantes: pendiente, pagado, validado, habilitado, admitido, rechazado.
@@ -108,6 +105,7 @@ Estados por tipo:
 Reglas:
 - Usa el ID exacto del periodo, el codigo exacto de carrera y el codigo exacto del grupo.
 - Si el usuario menciona un docente o profesor, usa el username exacto en el filtro docente.
+- Si el usuario menciona una materia, usa el ID exacto en el filtro materia.
 - Si el usuario pide "mostrar", "consultar" o no indica descarga, formato = pantalla.
 - Si pide PDF o Excel, accion = exportar y usa ese formato.
 - "Este mes" significa desde el primer dia hasta el ultimo dia del mes actual.
@@ -154,6 +152,7 @@ PROMPT;
                         'fecha_fin' => ['type' => 'string'],
                         'grupo' => ['type' => 'string'],
                         'docente' => ['type' => 'string'],
+                        'materia' => ['type' => 'string'],
                     ],
                 ],
             ],
